@@ -13,19 +13,41 @@
      CONFIG below is also overridden by Apps Script (see Code.gs).
      ════════════════════════════════════════════════════════════════ -->
 <script>
-  /* ▼▼▼  EDIT THESE LINES (used for the email/print fallback & trust line)  ▼▼▼ */
-  window.VMRC_CONFIG = {
-    coordinatorName:  "Justin Chao",
-    coordinatorEmail: "jchao@vmrc.net",  /* recipient for the email/Gmail fallback */
-    coordinatorPhone: "(209) 955-3293",  /* shown on the welcome screen's "prefer to call?" line */
+  /* ▼▼▼  COORDINATOR REGISTRY (2026-07-29) — one deployed form serves the whole team  ▼▼▼
+     Each Service Coordinator gets their OWN entry: their email + their OWN public key
+     (generate with make_keys.py — never share private keys between coordinators).
+     The coordinator's link carries ?sc=<id> (e.g. …?sc=jchao). No/unknown id → the default.
+     The family's summary is ENCRYPTED TO THAT COORDINATOR'S KEY and the email buttons
+     address that coordinator — end-to-end, per SC. To add a teammate:
+       1) py make_keys.py (fresh folder / their machine) → their keypair + unlock code
+       2) py build_decoder.py → give them their decoder page (never publish it)
+       3) paste their public_key.jwk.json below as a new entry + redeploy this form
+       4) their family link = <form URL>?sc=<their id>                                     */
+  window.VMRC_COORDINATORS = {
+    jchao: {
+      name:  "Justin Chao",
+      email: "jchao@vmrc.net",           /* recipient for the email/Gmail fallback */
+      phone: "(209) 955-3293",           /* welcome screen's "prefer to call?" line */
+      /* Microsoft Bookings: video + in-person meeting types ("" hides that surface) */
+      bookingUrl: "https://outlook.office.com/bookwithme/user/312c48775e294c209d9000acf8d3eb93@vmrc.net/meetingtype/H75kRGLC8EmQUjPeyDUFnQ2?anonymous&ismsaljsauthenabled&ep=email",
+      bookingUrlInPerson: "https://outlook.office.com/bookwithme/user/312c48775e294c209d9000acf8d3eb93@vmrc.net/meetingtype/LbigvfzL4kKiT7oeFONKGQ2?anonymous&ismsaljsauthenabled&ep=email",
+      /* This coordinator's PUBLIC key (safe to publish; private key lives only in their decoder) */
+      pubKey: {"kty":"RSA","n":"tY5qN-nSgkJre9zPJtOk_ncpCcwczbGBZN8jB7kRgnwCfdTplzaDacMvM5CqELrslGWNe-mBpskBZPilm_3xCEq_Bh_rFmoEGauxSgdEAnrm7M_wABm0ptq8CRdQSQOKf8Sd0Sm4toeLiSKxNG0bBwWxzJ67-SXkN4M9SUa_czAVteXSdnNJLzbr2UTM1_m2CyXff9wo0qwRvo196R_FSTaTRbi-BhNCQ1WAOA3KVguu3CPE67EaOckDRM3evB6wFSnxq0LQoUQaf43g6BDP-FgY39-NPn373ZhSV_p25VXZkTr1vFFmz6hCN7Ojf6lGIc0wNGcm7B_Yv-VnnhJokQ","e":"AQAB","alg":"RSA-OAEP-256","ext":true}
+    }
+  };
+  window.VMRC_DEFAULT_SC = "jchao";
+  window.VMRC_SC_ID = (function(){ try{
+    var id = (new URLSearchParams(location.search).get('sc') || '').toLowerCase().replace(/[^a-z0-9_-]/g, '');
+    return VMRC_COORDINATORS[id] ? id : VMRC_DEFAULT_SC;
+  }catch(e){ return VMRC_DEFAULT_SC; } })();
+  /* VMRC_CONFIG keeps its original shape — everything downstream reads it unchanged. */
+  window.VMRC_CONFIG = (function(){ var c = VMRC_COORDINATORS[VMRC_SC_ID]; return {
+    coordinatorName:  c.name,
+    coordinatorEmail: c.email,
+    coordinatorPhone: c.phone,
     familyReceipt: false,                /* MUST stay false while cloud submission is disabled (no backend = no receipt email; true would promise families a confirmation that never arrives) */
-    /* Microsoft Bookings links (recommended by VMRC IT). bookingUrl = the VIDEO/
-       virtual meeting type — also used on the welcome screen, family emails/texts,
-       and as the thank-you fallback. bookingUrlInPerson = the IN-PERSON meeting
-       type (step 9 card + thank-you when the family chose "In person").
-       Leave either "" to hide its booking surfaces. */
-    bookingUrl: "https://outlook.office.com/bookwithme/user/312c48775e294c209d9000acf8d3eb93@vmrc.net/meetingtype/H75kRGLC8EmQUjPeyDUFnQ2?anonymous&ismsaljsauthenabled&ep=email",
-    bookingUrlInPerson: "https://outlook.office.com/bookwithme/user/312c48775e294c209d9000acf8d3eb93@vmrc.net/meetingtype/LbigvfzL4kKiT7oeFONKGQ2?anonymous&ismsaljsauthenabled&ep=email",
+    bookingUrl: c.bookingUrl || "",
+    bookingUrlInPerson: c.bookingUrlInPerson || "",
     /* Light anti-spam: this must match CONFIG.TOKEN in Code.gs. (It's visible in
        the page source, so it only deters dumb bots — the honeypot is the real filter.) */
     token: "vmrc-intake-7Qk2",
@@ -33,13 +55,10 @@
        hand their answers to the coordinator via encrypted copy/email only. Leave
        this empty. (Old Apps Script /exec target removed on 2026-06-04.) */
     webAppUrl: "",
-    /* ENCRYPTED SEND (2026-07-22). The coordinator's PUBLIC key (safe to publish).
-       The family's browser encrypts the summary with a one-time AES-256-GCM key,
-       then seals that key with RSA-OAEP-256 below. Only the coordinator's private
-       key — kept offline in the local decoder page, unlocked by a code — can read
-       it. Rotate with make_keys.py (then rebuild decoder + redeploy this form). */
-    pubKey: {"kty":"RSA","n":"tY5qN-nSgkJre9zPJtOk_ncpCcwczbGBZN8jB7kRgnwCfdTplzaDacMvM5CqELrslGWNe-mBpskBZPilm_3xCEq_Bh_rFmoEGauxSgdEAnrm7M_wABm0ptq8CRdQSQOKf8Sd0Sm4toeLiSKxNG0bBwWxzJ67-SXkN4M9SUa_czAVteXSdnNJLzbr2UTM1_m2CyXff9wo0qwRvo196R_FSTaTRbi-BhNCQ1WAOA3KVguu3CPE67EaOckDRM3evB6wFSnxq0LQoUQaf43g6BDP-FgY39-NPn373ZhSV_p25VXZkTr1vFFmz6hCN7Ojf6lGIc0wNGcm7B_Yv-VnnhJokQ","e":"AQAB","alg":"RSA-OAEP-256","ext":true}
-  };
+    /* ENCRYPTED SEND (2026-07-22): one-time AES-256-GCM key sealed with THIS
+       coordinator's RSA-OAEP-256 public key; only their offline decoder reads it. */
+    pubKey: c.pubKey
+  }; })();
   /* ▲▲▲  Everything else is automatic.  ▲▲▲ */
 </script>
 <style>
