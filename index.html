@@ -2066,6 +2066,12 @@ function showFallback(p){
       if(!syncCopy(msg)) return manualCopy();
       markSent(); copiedNote(); window.location.href=mailtoShort;
     }; }
+    // 2026-08-20 (Justin's ask): pressing "✓ Send to my Coordinator" opens the
+    // email app DIRECTLY, pre-addressed to the coordinator — no second tap.
+    // Runs moments after the Send tap, inside the browser's transient-activation
+    // window. The panel stays behind it as the fallback (Gmail / Copy) for
+    // devices with no mail app; encryption failure never reaches this line.
+    eBtn.onclick();
   }).catch(()=>{
     // Never fall back to sending plaintext silently.
     const err=document.getElementById("sendErr");
