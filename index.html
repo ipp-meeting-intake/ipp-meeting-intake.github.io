@@ -1987,7 +1987,13 @@ async function encryptForCoordinator(text){
   // Compact envelope: dot-joined base64url segments (no JSON+btoa double-encoding —
   // that cost ~33% extra length). Format: IPP1.<z>.<wrappedKey>.<iv>.<ciphertext>
   const env=["IPP1",z,abToB64u(wk),abToB64u(iv.buffer),abToB64u(ct)].join(".");
-  return ENC_HDR+"\n"+(env.match(/.{1,76}/g)||[]).join("\n")+"\n"+ENC_END;
+  // Recipient tag (2026-08-31): a machine-readable line ABOVE the fence naming the
+  // coordinator this envelope is sealed to. Old decoders ignore it (they only read
+  // between the fences); new ones use it to say "this intake is addressed to <Name>"
+  // instead of a dead-end error when it lands in the wrong inbox. It names only the
+  // coordinator — never the family — and needs no translation (address label, not prose).
+  const tag="[IPP-INTAKE for: "+(window.VMRC_CONFIG.coordinatorName||"")+" / "+(window.VMRC_SC_ID||"")+"]";
+  return tag+"\n"+ENC_HDR+"\n"+(env.match(/.{1,76}/g)||[]).join("\n")+"\n"+ENC_END;
 }
 
 function showFallback(p){
