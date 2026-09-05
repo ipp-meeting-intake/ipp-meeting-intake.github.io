@@ -168,6 +168,16 @@
     box-shadow:0 2px 14px rgba(0,0,0,.28);
   }
   .bar-row{display:flex;align-items:center;gap:10px;max-width:640px;margin:0 auto}
+  /* 2026-09-05: measured on a 393px phone — the title block was 81px tall (five wrapped
+     lines squeezed beside four icon buttons) and the whole bar 251px, 258px in big-text
+     mode. Let the title span the full width and drop the buttons to a second row. */
+  @media(max-width:520px){
+    .bar-row{flex-wrap:wrap;row-gap:6px}
+    .bar-row>div:first-child{flex:1 1 100%}
+    .bar-row .spacer{display:none}
+    .bar-title{font-size:16px}
+  }
+  html.big .bar .org{display:none}
   .bar .org{font-size:10px;letter-spacing:.12em;color:var(--cyan);font-weight:800;text-transform:uppercase}
   .bar .ttl{font-size:15.5px;font-weight:800;line-height:1.15}
   .bar .spacer{flex:1}
@@ -175,8 +185,8 @@
   .bar-title{font-size:15px;font-weight:800;color:#fff;line-height:1.15}
   .iconbtn{
     background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.26);color:#fff;
-    border-radius:30px;padding:6px 12px;font-size:12.5px;font-weight:700;cursor:pointer;
-    display:flex;align-items:center;gap:6px;white-space:nowrap;transition:.15s;
+    border-radius:30px;padding:9px 14px;min-height:40px;font-size:12.5px;font-weight:700;cursor:pointer;
+    display:flex;align-items:center;gap:6px;white-space:nowrap;transition:.15s;   /* 2026-09-05: was 28px tall; 40px min for older thumbs */
   }
   .iconbtn:hover{background:rgba(255,255,255,.22)}
   /* progress */
@@ -187,7 +197,7 @@
   /* segmented step bar — click anywhere along it to jump to that step */
   .segwrap{max-width:640px;margin:10px auto 0}
   .segbar{display:flex;gap:3px}
-  .segbar .seg{flex:1;min-width:0;height:32px;border:none;background:rgba(255,255,255,.14);
+  .segbar .seg{flex:1;min-width:0;height:40px;border:none;background:rgba(255,255,255,.14);
     color:rgba(255,255,255,.72);border-radius:6px;font-size:12.5px;font-weight:800;cursor:pointer;
     display:flex;align-items:center;justify-content:center;font-family:inherit;padding:0;transition:.15s}
   .segbar .seg:hover{background:rgba(255,255,255,.30);color:#fff}
@@ -200,6 +210,9 @@
   .savedpill.show{opacity:1;transform:none}
   .iconbtn.on{background:rgba(255,255,255,.30)}
   html.big body{zoom:1.18}
+  /* 2026-09-05: in big-text mode the sticky header measured 256px = 35% of a phone
+     screen. Collapse the numbered tiles; the "Step 4 of 11" label + progress bar stay. */
+  html.big .segbar{display:none}
   html.big .chip{padding:12px 22px}
   html.big .hint{font-weight:600}
   html.big input,html.big textarea,html.big select{border-width:2px}
@@ -437,9 +450,14 @@
   .btn.save{background:#0f766e;color:#fff}
 
   .err{color:#c0392b;font-size:13px;font-weight:600;margin-top:8px;display:none}
+  /* 2026-09-05: #c0392b on the dark panel measured 3.6:1 — below the 4.5:1 body-text
+     minimum, on the one message that most needs reading. Lifted for dark theme. */
+  [data-theme="dark"] .err{color:#f08a80}
   .err.ok{color:#1e7e34}                          /* "✓ Copied…" is a success, not an error */
   [data-theme="dark"] .err.ok{color:#7bd88a}
-  .footer{text-align:center;font-size:11px;color:var(--muted);padding:14px;opacity:.85}
+  .skip{position:absolute;left:-9999px;top:8px;z-index:99;background:#fff;color:#0c0d10;padding:10px 14px;border-radius:8px;font-weight:700;text-decoration:none}
+  .skip:focus{left:8px}
+  .footer{text-align:center;font-size:12.5px;color:var(--muted);padding:14px;opacity:.9}   /* 2026-09-05: was 11px */
   .lockicon{font-size:11px}
 
   /* ── Keyboard accessibility: clear focus rings on every tap-target ── */
@@ -488,11 +506,18 @@
 </style>
 </head>
 <body>
-
+<!-- 2026-09-05: keyboard/screen-reader users hit 15 tab stops (4 icon buttons + 10
+     stepper tiles) before the first question on every screen. -->
+<a class="skip" href="#stage">Skip to the questions</a>
 
 <div class="bar">
   <div class="bar-row">
-    <div class="bar-title" id="barTtl" role="button" tabindex="0" style="cursor:pointer" title="Home">Getting Ready for Your Meeting</div>
+    <div>
+      <!-- 2026-09-05: the agency name is the strongest trust signal a texted github.io
+           link can carry. The .org style already existed in the CSS, unused. -->
+      <div class="org">Valley Mountain Regional Center</div>
+      <div class="bar-title" id="barTtl" role="button" tabindex="0" style="cursor:pointer" title="Home">Getting Ready for Your Meeting</div>
+    </div>
     <div class="spacer"></div>
     <button class="iconbtn" id="langBtn" title="Language">🌐 ES</button>
     <button class="iconbtn" id="readBtn" title="Read this page aloud" aria-label="Read this page aloud" aria-pressed="false">🔊</button>
@@ -583,12 +608,12 @@ const STEPS = [
       {key:"legal_name", type:"text", label:{en:"Person's full legal name (VMRC)",es:"Nombre legal completo de la persona (VMRC)"}, hint:{en:"The name of the person who receives VMRC services — not the parent's name. This is the only answer needed to send.",es:"El nombre de la persona que recibe servicios de VMRC — no el nombre del padre/madre. Es la única respuesta necesaria para enviar."}, ph:{en:"First and last name",es:"Nombre y apellido"}},
       {key:"preferred_name", type:"text", optional:1, label:{en:"What do they like to be called?",es:"¿Cómo le gusta que le llamen?"}, ph:{en:"Nickname / preferred name",es:"Apodo / nombre preferido"}},
       {key:"dob", type:"dob3", optional:1, label:{en:"Date of birth",es:"Fecha de nacimiento"}},
-      {key:"pref_language", type:"chips", single:1, label:{en:"Preferred language",es:"Idioma preferido"},
+      {key:"pref_language", type:"chips", optional:1, single:1, label:{en:"Preferred language",es:"Idioma preferido"},
         options:[{v:"English",en:"English",es:"Inglés"},{v:"Spanish",en:"Spanish",es:"Español"},{v:"Hmong",en:"Hmong (Hmoob)",es:"Hmong (Hmoob)"},{v:"Vietnamese",en:"Vietnamese (Tiếng Việt)",es:"Vietnamita (Tiếng Việt)"},{v:"Tagalog",en:"Tagalog",es:"Tagalo"},{v:"Punjabi",en:"Punjabi (ਪੰਜਾਬੀ)",es:"Punyabí (ਪੰਜਾਬੀ)"},{v:"Other",en:"Other",es:"Otro"}]},
-      {key:"respondent_name", type:"text", label:{en:"Your name (person filling this out)",es:"Su nombre (quien completa esto)"}, ph:{en:"Your name",es:"Su nombre"}},
-      {key:"respondent_relationship", type:"text", label:{en:"Your relationship to them",es:"Su relación con la persona"}, ph:{en:"e.g. Mother, Self, Guardian",es:"ej. Madre, Yo mismo, Tutor"}},
-      {key:"respondent_phone", type:"tel", optional:1, label:{en:"Best phone number",es:"Mejor número de teléfono"}, ph:{en:"(000) 000-0000",es:"(000) 000-0000"}},
-      {key:"respondent_email", type:"email", optional:1, label:{en:"Email",es:"Correo electrónico"}, ph:{en:"name@email.com",es:"nombre@correo.com"}},
+      {key:"respondent_name", type:"text", optional:1, autocomplete:"name", label:{en:"Your name (person filling this out)",es:"Su nombre (quien completa esto)"}, ph:{en:"Your name",es:"Su nombre"}},
+      {key:"respondent_relationship", type:"text", optional:1, label:{en:"Your relationship to them",es:"Su relación con la persona"}, ph:{en:"e.g. Mother, Self, Guardian",es:"ej. Madre, Yo mismo, Tutor"}},
+      {key:"respondent_phone", type:"tel", autocomplete:"tel", optional:1, label:{en:"Best phone number",es:"Mejor número de teléfono"}, ph:{en:"(000) 000-0000",es:"(000) 000-0000"}},
+      {key:"respondent_email", type:"email", autocomplete:"email", optional:1, label:{en:"Email",es:"Correo electrónico"}, ph:{en:"name@email.com",es:"nombre@correo.com"}},
     ]},
 
   /* ── 1 · Who they are (introduction/vision) ── */
@@ -600,6 +625,12 @@ const STEPS = [
       {key:"about_admire", type:"textarea", optional:1, label:{en:"What do people like & admire about them?",es:"¿Qué les gusta y admiran de ellos?"}, ph:{en:"Their best qualities…",es:"Sus mejores cualidades…"}},
       {key:"vision_year", type:"textarea", optional:1, label:{en:"What are their hopes for this year?",es:"¿Cuáles son sus deseos para este año?"}, ph:{en:"Goals, things they'd like to do or learn…",es:"Metas, cosas que les gustaría hacer o aprender…"}},
       {key:"vision_future", type:"textarea", optional:1, label:{en:"Bigger picture — where do they want to live, work, or be in the community?",es:"A futuro — ¿dónde quieren vivir, trabajar o estar en la comunidad?"}, ph:{en:"Long-term vision…",es:"Visión a largo plazo…"}},
+      /* ── 2026-09-05 additions: DDS 2025 IPP "Introduction" prompts + Important To / For ── */
+      {key:"important_to", type:"textarea", optional:1, label:{en:"What matters most to them?",es:"¿Qué es lo más importante para ellos?"}, hint:{en:"The people, places, routines and things that make a good day.",es:"Las personas, lugares, rutinas y cosas que hacen un buen día."}, ph:{en:"e.g. Sunday dinners at Grandma's, his morning walk, music on in the car…",es:"ej. las cenas de domingo con la abuela, su caminata de la mañana, música en el carro…"}},
+      {key:"important_for", type:"textarea", optional:1, label:{en:"What do they need to stay healthy and safe?",es:"¿Qué necesitan para estar sanos y seguros?"}, ph:{en:"e.g. someone nearby when cooking, meds at 8am, a quiet place when overwhelmed…",es:"ej. alguien cerca al cocinar, medicinas a las 8am, un lugar tranquilo cuando se abruma…"}},
+      {key:"success", type:"textarea", optional:1, label:{en:"Something they did this year that made you proud",es:"Algo que hicieron este año que le dio orgullo"}, ph:{en:"Big or small…",es:"Grande o pequeño…"}},
+      {key:"people", type:"textarea", optional:1, label:{en:"Who do they most like to spend time with?",es:"¿Con quién les gusta más pasar el tiempo?"}, ph:{en:"Family, friends, neighbors, staff…",es:"Familia, amigos, vecinos, personal…"}},
+      {key:"culture", type:"textarea", optional:1, label:{en:"Anything about your family's culture, language or faith we should honor in the plan?",es:"¿Algo de la cultura, el idioma o la fe de su familia que debamos respetar en el plan?"}, ph:{en:"Optional",es:"Opcional"}},
     ]},
 
   /* ── 2 · Communication ── */
@@ -607,7 +638,7 @@ const STEPS = [
     intro:{en:"So everyone on the team knows the best way to connect with them.",
            es:"Para que todo el equipo sepa la mejor manera de conectar con ellos."},
     fields:[
-      {key:"comm_style", type:"chips", label:{en:"How do they communicate? (tap all that apply)",es:"¿Cómo se comunican? (toque todo lo que aplique)"},
+      {key:"comm_style", type:"chips", optional:1, label:{en:"How do they communicate? (tap all that apply)",es:"¿Cómo se comunican? (toque todo lo que aplique)"},
         options:[
           {v:"Full sentences",en:"Talks in sentences",es:"Habla en oraciones"},
           {v:"A few words",en:"A few words",es:"Pocas palabras"},
@@ -642,12 +673,35 @@ const STEPS = [
           {v:"Hearing Impairment",en:"Hearing Impairment",es:"Discapacidad Auditiva"},
           {v:"Vision Impairment",en:"Vision Impairment",es:"Discapacidad Visual"},
         ]},
-      {key:"allergies", type:"chips", single:1, noneable:1, label:{en:"Any allergies? (food or medicine)",es:"¿Alguna alergia? (comida o medicina)"},
+      {key:"allergies", type:"chips", optional:1, single:1, noneable:1, label:{en:"Any allergies? (food or medicine)",es:"¿Alguna alergia? (comida o medicina)"},
         options:[{v:"None",en:"None / No known allergies",es:"Ninguna / Sin alergias conocidas",none:1},{v:"Yes",en:"Yes — list below",es:"Sí — anote abajo"}]},
       {key:"allergies_list", type:"text", optional:1, showIf:["allergies","Yes"], label:{en:"What are they allergic to?",es:"¿A qué es alérgico?"}, ph:{en:"List allergies and reactions",es:"Anote alergias y reacciones"}},
       {key:"medications", type:"repeat", repeatKind:"med", optional:1, label:{en:"Current medications",es:"Medicamentos actuales"},
         tip:{en:"Tip: grab their medicine bottles before you start — the label shows the exact name and dose.",es:"Consejo: tome los frascos de medicina antes de comenzar — la etiqueta muestra el nombre y la dosis exactos."},
         hint:{en:"Start typing to pick from common medications — a typical dose fills in automatically (you can change it). Tap + to add more, or type any medication.",es:"Empiece a escribir para elegir de medicamentos comunes — la dosis típica se llena automáticamente (puede cambiarla). Toque + para agregar más, o escriba cualquier medicamento."}},
+      {key:"health_concerns", type:"chips", optional:1, noneable:1, label:{en:"Any current concerns? (tap all that apply)",es:"¿Alguna preocupación actual? (toque todo lo que aplique)"},
+        options:[
+          {v:"Sleep",en:"Sleep",es:"Sueño"},{v:"Diet/eating",en:"Diet / eating",es:"Dieta / comer"},
+          {v:"Pain",en:"Pain",es:"Dolor"},{v:"Seizures",en:"Seizures",es:"Convulsiones"},
+          {v:"Vision",en:"Vision",es:"Visión"},{v:"Hearing",en:"Hearing",es:"Audición"},
+          {v:"Mobility",en:"Mobility",es:"Movilidad"},{v:"Breathing/asthma",en:"Breathing / asthma",es:"Respiración / asma"},
+          {v:"None",en:"No concerns",es:"Sin preocupaciones",none:1},
+        ]},
+      {key:"aids", type:"chips", optional:1, noneable:1, label:{en:"Do they use any of these?",es:"¿Usan alguno de estos?"},
+        options:[
+          {v:"Glasses",en:"Glasses",es:"Lentes"},{v:"Hearing aid",en:"Hearing aid",es:"Audífono"},
+          {v:"Wheelchair/walker",en:"Wheelchair / walker",es:"Silla de ruedas / andador"},
+          {v:"Communication device",en:"Communication device",es:"Dispositivo de comunicación"},
+          {v:"None",en:"None",es:"Ninguno",none:1},
+        ]},
+      {key:"health_notes", type:"textarea", optional:1, label:{en:"Anything else about their health?",es:"¿Algo más sobre su salud?"}, ph:{en:"Optional",es:"Opcional"}},
+    ]},
+
+  /* ── 3b · Doctors & insurance (2026-09-05: split out of Health — that step was 13 fields and 4.1 screens deep) ── */
+  { icon:"🏥", title:{en:"Doctors & insurance",es:"Médicos y seguro"},
+    intro:{en:"Skip anything you're not sure of — we can look these up together.",
+           es:"Omita lo que no sepa — lo podemos buscar juntos."},
+    fields:[
       {key:"doctor", type:"text", optional:1, label:{en:"Primary doctor — name & phone",es:"Médico principal — nombre y teléfono"}, ph:{en:"Dr. name, clinic, phone",es:"Dr. nombre, clínica, teléfono"}},
       {key:"doctor_last", type:"chips", single:1, optional:1, label:{en:"Last doctor visit (about when?)",es:"Última visita al médico (¿más o menos cuándo?)"},
         options:[
@@ -673,7 +727,6 @@ const STEPS = [
           {v:"Dermatologist",en:"Skin doctor (dermatologist)",es:"Dermatólogo (piel)"},
           {v:"Allergist",en:"Allergy doctor (allergist)",es:"Alergólogo (alergias)"},
         ]},
-      {key:"dentist", type:"text", optional:1, label:{en:"Dentist — name & last visit",es:"Dentista — nombre y última visita"}, ph:{en:"Name, month/year",es:"Nombre, mes/año"}},
       {key:"insurance", type:"chips", optional:1, addOther:1, label:{en:"Insurance (tap all that apply)",es:"Seguro médico (toque todo lo que aplique)"},
         hint:{en:"Tap any they have — or add your own.",es:"Toque los que tengan — o agregue el suyo."},
         options:[
@@ -683,23 +736,7 @@ const STEPS = [
           {v:"Aetna",en:"Aetna",es:"Aetna"},
           {v:"Private insurance",en:"Private insurance",es:"Seguro privado"},
         ]},
-      {key:"insurance_info", type:"text", optional:1, label:{en:"Insurance plan name & member ID",es:"Nombre del plan y número de miembro"}, ph:{en:"Plan name, ID number",es:"Nombre del plan, número de ID"}},
-      {key:"health_concerns", type:"chips", noneable:1, label:{en:"Any current concerns? (tap all that apply)",es:"¿Alguna preocupación actual? (toque todo lo que aplique)"},
-        options:[
-          {v:"Sleep",en:"Sleep",es:"Sueño"},{v:"Diet/eating",en:"Diet / eating",es:"Dieta / comer"},
-          {v:"Pain",en:"Pain",es:"Dolor"},{v:"Seizures",en:"Seizures",es:"Convulsiones"},
-          {v:"Vision",en:"Vision",es:"Visión"},{v:"Hearing",en:"Hearing",es:"Audición"},
-          {v:"Mobility",en:"Mobility",es:"Movilidad"},{v:"Breathing/asthma",en:"Breathing / asthma",es:"Respiración / asma"},
-          {v:"None",en:"No concerns",es:"Sin preocupaciones",none:1},
-        ]},
-      {key:"aids", type:"chips", noneable:1, label:{en:"Do they use any of these?",es:"¿Usan alguno de estos?"},
-        options:[
-          {v:"Glasses",en:"Glasses",es:"Lentes"},{v:"Hearing aid",en:"Hearing aid",es:"Audífono"},
-          {v:"Wheelchair/walker",en:"Wheelchair / walker",es:"Silla de ruedas / andador"},
-          {v:"Communication device",en:"Communication device",es:"Dispositivo de comunicación"},
-          {v:"None",en:"None",es:"Ninguno",none:1},
-        ]},
-      {key:"health_notes", type:"textarea", optional:1, label:{en:"Anything else about their health?",es:"¿Algo más sobre su salud?"}, ph:{en:"Optional",es:"Opcional"}},
+      {key:"insurance_info", type:"text", optional:1, hint:{en:"Only if handy — Medi-Cal is already on file.",es:"Solo si lo tiene a mano — Medi-Cal ya está en el expediente."}, label:{en:"Insurance plan name & member ID",es:"Nombre del plan y número de miembro"}, ph:{en:"Plan name, ID number",es:"Nombre del plan, número de ID"}},
     ]},
 
   /* ── 4 · Daily life & support ── */
@@ -714,7 +751,7 @@ const STEPS = [
           {v:"Dad",en:"Dad",es:"Papá"},
           {v:"Siblings",en:"Siblings",es:"Hermanos"},
         ]},
-      {key:"help_with", type:"chips", noneable:1, label:{en:"What do they need help with? (tap all)",es:"¿En qué necesitan ayuda? (toque todo)"},
+      {key:"help_with", type:"chips", optional:1, noneable:1, label:{en:"What do they need help with? (tap all)",es:"¿En qué necesitan ayuda? (toque todo)"},
         options:[
           {v:"Bathing",en:"Bathing",es:"Bañarse"},{v:"Dressing",en:"Dressing",es:"Vestirse"},
           {v:"Grooming",en:"Grooming",es:"Aseo personal"},{v:"Toileting",en:"Toileting",es:"Ir al baño"},
@@ -722,13 +759,13 @@ const STEPS = [
           {v:"Taking medicine",en:"Taking medicine",es:"Tomar medicina"},{v:"Money",en:"Money",es:"Dinero"},
           {v:"Mostly independent",en:"Mostly independent",es:"Mayormente independiente",none:1},
         ]},
-      {key:"ihss_services", type:"chips", noneable:1, label:{en:"Do they receive any of these? (tap all)",es:"¿Reciben alguno de estos? (toque todo)"},
+      {key:"ihss_services", type:"chips", optional:1, noneable:1, label:{en:"Do they receive any of these? (tap all)",es:"¿Reciben alguno de estos? (toque todo)"},
         options:[
           {v:"IHSS (in-home care)",en:"IHSS (in-home care)",es:"IHSS (cuidado en casa)"},
           {v:"Incontinence supplies",en:"Incontinence supplies",es:"Suministros de incontinencia"},
           {v:"Neither",en:"Neither",es:"Ninguno",none:1},
         ]},
-      {key:"ihss_hours", type:"text", optional:1, showIf:["ihss_services","IHSS (in-home care)"], label:{en:"How many IHSS hours per month?",es:"¿Cuántas horas de IHSS al mes?"}, ph:{en:"e.g. 67",es:"ej. 67"}},
+      {key:"ihss_hours", type:"text", inputmode:"numeric", optional:1, showIf:["ihss_services","IHSS (in-home care)"], label:{en:"How many IHSS hours per month?",es:"¿Cuántas horas de IHSS al mes?"}, ph:{en:"e.g. 67",es:"ej. 67"}},
       {key:"ihss_provider", type:"select", optional:1, showIf:["ihss_services","IHSS (in-home care)"], label:{en:"Who is the IHSS care provider?",es:"¿Quién es el proveedor de cuidado de IHSS?"},
         options:[
           {v:"Mom",en:"Mom",es:"Mamá"},{v:"Dad",en:"Dad",es:"Papá"},
@@ -745,6 +782,15 @@ const STEPS = [
           {v:"Western Drugs",en:"Western Drugs",es:"Western Drugs"},
           {v:"Shield Healthcare",en:"Shield Healthcare",es:"Shield Healthcare"},
         ]},
+      /* ── 2026-09-05 additions: 2025 IPP Decision-Making (required section) + Transportation + Employment/Education life areas ── */
+      {key:"decision_help", type:"chips", single:1, optional:1, label:{en:"Who helps them make big decisions?",es:"¿Quién les ayuda a tomar decisiones grandes?"}, hint:{en:"Like money, health care, or where to live.",es:"Como dinero, salud, o dónde vivir."},
+        options:[{v:"On their own",en:"They decide on their own",es:"Deciden por sí mismos"},{v:"With family",en:"With help from family",es:"Con ayuda de la familia"},{v:"Conservator",en:"A conservator decides",es:"Un conservador decide"},{v:"Supported decision-making",en:"A supported decision-making agreement",es:"Un acuerdo de toma de decisiones con apoyo"},{v:"Not sure",en:"Not sure",es:"No estoy seguro"}]},
+      {key:"legal_decider", type:"chips", single:1, optional:1, label:{en:"Is there a conservatorship or other legal decision-maker?",es:"¿Hay una conservaduría u otra persona con poder legal para decidir?"},
+        options:[{v:"Yes",en:"Yes",es:"Sí"},{v:"No",en:"No",es:"No"},{v:"Not sure",en:"Not sure",es:"No estoy seguro"}]},
+      {key:"getting_around", type:"chips", optional:1, addOther:1, label:{en:"How do they get around?",es:"¿Cómo se transportan?"},
+        options:[{v:"Family drives",en:"Family drives them",es:"La familia los lleva"},{v:"Bus or paratransit",en:"Bus or paratransit",es:"Autobús o paratránsito"},{v:"Walks",en:"Walks",es:"Camina"},{v:"Rideshare",en:"Rideshare (Uber/Lyft)",es:"Viaje compartido (Uber/Lyft)"},{v:"Drives",en:"Drives themselves",es:"Maneja"},{v:"Needs help",en:"Needs help to get around",es:"Necesita ayuda para moverse"}]},
+      {key:"work_now", type:"textarea", optional:1, ageOnly:"adult", label:{en:"Work or day program — what do they do now, and what would they like?",es:"Trabajo o programa de día — ¿qué hacen ahora, y qué les gustaría?"}, ph:{en:"e.g. day program 3 days a week; would love a job at a store",es:"ej. programa de día 3 días; le encantaría trabajar en una tienda"}},
+      {key:"school_now", type:"textarea", optional:1, ageOnly:"youth", label:{en:"What are they learning at school, and what comes after school?",es:"¿Qué aprenden en la escuela, y qué viene después de la escuela?"}, ph:{en:"e.g. life skills class; thinking about a job or college",es:"ej. clase de habilidades de vida; pensando en trabajo o colegio"}},
     ]},
 
   /* ── 5 · Safety ── */
@@ -752,7 +798,7 @@ const STEPS = [
     intro:{en:"So your coordinator can plan the right supervision and supports.",
            es:"Para que su coordinador planee la supervisión y los apoyos adecuados."},
     fields:[
-      {key:"safety_concerns", type:"chips", noneable:1, label:{en:"Any safety concerns? (tap all)",es:"¿Preocupaciones de seguridad? (toque todo)"},
+      {key:"safety_concerns", type:"chips", optional:1, noneable:1, label:{en:"Any safety concerns? (tap all)",es:"¿Preocupaciones de seguridad? (toque todo)"},
         options:[
           {v:"Wandering/leaving alone",en:"Wandering / leaving alone",es:"Deambular / irse solo"},
           {v:"No stranger danger awareness",en:"Approaches strangers",es:"Se acerca a extraños"},
@@ -762,7 +808,7 @@ const STEPS = [
           {v:"Traffic/water safety",en:"Traffic / water safety",es:"Seguridad con tráfico / agua"},
           {v:"None",en:"No concerns",es:"Sin preocupaciones",none:1},
         ]},
-      {key:"medic_alert", type:"chips", single:1, label:{en:"Do they have a Medic Alert ID?",es:"¿Tienen identificación Medic Alert?"},
+      {key:"medic_alert", type:"chips", optional:1, single:1, label:{en:"Do they have a Medic Alert ID?",es:"¿Tienen identificación Medic Alert?"},
         options:[{v:"Yes",en:"Yes",es:"Sí"},{v:"No",en:"No",es:"No"},{v:"Want info",en:"Would like info",es:"Quisiera información"}]},
       {key:"medic_alert_engrave", type:"engrave", optional:1, showIf:["medic_alert","Yes"],
         label:{en:"What should be engraved on the Medic Alert ID?",es:"¿Qué debe grabarse en la identificación Medic Alert?"},
@@ -777,15 +823,15 @@ const STEPS = [
     intro:{en:"Quick check on benefits — tap what applies, skip if unsure.",
            es:"Revisión rápida de beneficios — toque lo que aplique, omita si no está seguro."},
     fields:[
-      {key:"benefits", type:"chips", noneable:1, addOther:1, label:{en:"Which do they receive? (tap all)",es:"¿Cuáles reciben? (toque todo)"},
+      {key:"benefits", type:"chips", optional:1, noneable:1, addOther:1, label:{en:"Which do they receive? (tap all)",es:"¿Cuáles reciben? (toque todo)"},
         options:[
           {v:"SSI",en:"SSI",es:"SSI"},{v:"SSDI",en:"SSDI",es:"SSDI"},
           {v:"AAP (Adoption Assistance)",en:"AAP (Adoption Assistance)",es:"AAP (Asistencia de Adopción)"},
           {v:"None",en:"None",es:"Ninguno",none:1},{v:"Not sure",en:"Not sure",es:"No estoy seguro",none:1},
         ]},
-      {key:"ssi_amount", type:"text", optional:1, showIf:["benefits","SSI"], label:{en:"SSI amount received",es:"Monto de SSI que recibe"}, ph:{en:"$ per month",es:"$ por mes"}},
-      {key:"ssdi_amount", type:"text", optional:1, showIf:["benefits","SSDI"], label:{en:"SSDI amount received",es:"Monto de SSDI que recibe"}, ph:{en:"$ per month",es:"$ por mes"}},
-      {key:"aap_amount", type:"text", optional:1, showIf:["benefits","AAP (Adoption Assistance)"], label:{en:"AAP amount received",es:"Monto de AAP que recibe"}, ph:{en:"$ per month",es:"$ por mes"}},
+      {key:"ssi_amount", type:"text", inputmode:"decimal", optional:1, showIf:["benefits","SSI"], hint:{en:"Only if it's handy — we can get this at the meeting.",es:"Solo si lo tiene a mano — lo podemos ver en la reunión."}, label:{en:"SSI amount received",es:"Monto de SSI que recibe"}, ph:{en:"$ per month",es:"$ por mes"}},
+      {key:"ssdi_amount", type:"text", inputmode:"decimal", optional:1, showIf:["benefits","SSDI"], hint:{en:"Only if it's handy — we can get this at the meeting.",es:"Solo si lo tiene a mano — lo podemos ver en la reunión."}, label:{en:"SSDI amount received",es:"Monto de SSDI que recibe"}, ph:{en:"$ per month",es:"$ por mes"}},
+      {key:"aap_amount", type:"text", inputmode:"decimal", optional:1, showIf:["benefits","AAP (Adoption Assistance)"], hint:{en:"Only if it's handy — we can get this at the meeting.",es:"Solo si lo tiene a mano — lo podemos ver en la reunión."}, label:{en:"AAP amount received",es:"Monto de AAP que recibe"}, ph:{en:"$ per month",es:"$ por mes"}},
       {key:"payee", type:"chips", single:1, optional:1, label:{en:"Who manages their money?",es:"¿Quién maneja su dinero?"},
         options:[{v:"Themselves",en:"Themselves",es:"Ellos mismos"},{v:"Parent/family",en:"Parent / family",es:"Padre / familia"},{v:"Other payee",en:"Other payee",es:"Otro beneficiario"}]},
     ]},
@@ -795,7 +841,7 @@ const STEPS = [
     intro:{en:"Who should we call first, and what should responders know?",
            es:"¿A quién llamamos primero, y qué deben saber los rescatistas?"},
     fields:[
-      {key:"emergency_contacts", type:"repeat", repeatKind:"contact", label:{en:"Emergency contacts",es:"Contactos de emergencia"}, hint:{en:"Add at least one.",es:"Agregue al menos uno."}},
+      {key:"emergency_contacts", type:"repeat", optional:1, repeatKind:"contact", label:{en:"Emergency contacts",es:"Contactos de emergencia"}, hint:{en:"Add at least one.",es:"Agregue al menos uno."}},
       {key:"emergency_notes", type:"textarea", optional:1, label:{en:"What should 911 / responders know?",es:"¿Qué deben saber el 911 / rescatistas?"}, ph:{en:"e.g. has autism, limited speech, wears Medic Alert…",es:"ej. tiene autismo, habla limitada, usa Medic Alert…"}},
     ]},
 
@@ -804,10 +850,16 @@ const STEPS = [
     intro:{en:"Last step! How would you like the IPP meeting to happen?",
            es:"¡Último paso! ¿Cómo le gustaría que sea la reunión del IPP?"},
     fields:[
-      {key:"meeting_format", type:"chips", single:1, label:{en:"Meeting format",es:"Formato de la reunión"},
+      {key:"meeting_format", type:"chips", optional:1, single:1, label:{en:"Meeting format",es:"Formato de la reunión"},
         options:[{v:"In person",en:"In person",es:"En persona"},{v:"Video call",en:"Video call",es:"Videollamada"}]},
       {key:"meeting_location", type:"text", optional:1, showIf:["meeting_format","In person"], label:{en:"Preferred location",es:"Lugar preferido"}, ph:{en:"Home, office, restaurant…",es:"Casa, oficina, restaurante…"}},
       {key:"meeting_who", type:"text", optional:1, label:{en:"Who will join the meeting?",es:"¿Quién participará en la reunión?"}, ph:{en:"Names & relationships",es:"Nombres y relaciones"}},
+      /* ── 2026-09-05: "How This Plan Was Developed" (what part the person plays) + renewal check-in ── */
+      {key:"their_part", type:"chips", single:1, optional:1, label:{en:"How does the person want to take part in the meeting?",es:"¿Cómo quiere la persona participar en la reunión?"},
+        options:[{v:"Whole time",en:"Be there the whole time",es:"Estar todo el tiempo"},{v:"Part",en:"Join for part of it",es:"Participar en una parte"},{v:"Through me",en:"Share their wishes through me",es:"Compartir sus deseos a través de mí"},{v:"Not sure",en:"Not sure",es:"No estoy seguro"}]},
+      {key:"last_year", type:"chips", single:1, optional:1, renewalOnly:1, label:{en:"Did last year's plan help?",es:"¿Ayudó el plan del año pasado?"},
+        options:[{v:"Yes, keep it",en:"Yes — keep most of it",es:"Sí — mantener la mayoría"},{v:"Some",en:"Some of it — change parts",es:"En parte — cambiar algunas cosas"},{v:"Not really",en:"Not really — let's rethink it",es:"No mucho — hay que replantearlo"},{v:"Not sure",en:"Not sure",es:"No estoy seguro"}]},
+      {key:"last_year_notes", type:"textarea", optional:1, renewalOnly:1, label:{en:"What should we keep, and what should change?",es:"¿Qué debemos mantener, y qué debe cambiar?"}, ph:{en:"Optional",es:"Opcional"}},
       /* "Best time to meet" = live Microsoft Bookings calendars, one per format.
          In person and Video call are separate Bookings meeting types; the matching
          card appears once the family picks a format above. Booking fields never
@@ -875,11 +927,30 @@ const MED_BY_NAME = {};
 MED_LIST.forEach(m => { MED_BY_NAME[m.name.toLowerCase()] = m.dose; });
 
 /* Short labels for the clickable step navigator (aligned to STEPS order) */
+/* ── Continuation mode (2026-09-05) ──────────────────────────────────────────
+   Returning families (link carries &renewal=1) get a "Since last year…" chip row at
+   the top of every middle section. "No changes" collapses that section's questions,
+   and the review + the coordinator's copy say "No changes" for it. The rows are real
+   fields, so they ride the normal chip / showIf / review / payload machinery; they
+   carry renewalOnly, so first-time links never see them. Basics and Meeting are
+   exempt — names and scheduling are always asked. */
+STEPS.forEach((s,i)=>{
+  if(i===0 || i===STEPS.length-1) return;
+  const slug=String(s.title.en).toLowerCase().replace(/[^a-z]+/g,"_").replace(/^_|_$/g,"");
+  const gateKey="since_"+slug;
+  s.fields.forEach(f=>{ f.sinceKey=gateKey; });
+  s.fields.unshift({key:gateKey, type:"chips", single:1, optional:1, renewalOnly:1, sinceGate:1,
+    label:{en:"Since last year…",es:"Desde el año pasado…"},
+    hint:{en:"Tap ‘No changes’ to skip this section.",es:"Toque ‘Sin cambios’ para omitir esta sección."},
+    options:[{v:"No changes",en:"No changes",es:"Sin cambios"},{v:"Some changes",en:"Some changes",es:"Algunos cambios"}]});
+});
+
 const STEP_SHORT = [
   {en:"Basics",es:"Datos"},
   {en:"About",es:"Sobre"},
   {en:"Comm.",es:"Comunic."},
   {en:"Health",es:"Salud"},
+  {en:"Doctors",es:"Médicos"},
   {en:"Daily life",es:"Vida diaria"},
   {en:"Safety",es:"Seguridad"},
   {en:"Benefits",es:"Beneficios"},
@@ -890,8 +961,8 @@ const STEP_REVIEW_SHORT = {en:"Review",es:"Revisar"};
 
 /* Colored line-icons per step — color-coded so each tab is easy to recognize.
    (SVG instead of emoji so the color is controllable, e.g. recolored stethoscope.) */
-const STEP_COLOR = ["#4a7fd6","#e36aa0","#f0a500","#0fa3a3","#e8763b","#e23b3b","#2e9e5b","#ef5350","#7e57c2"];
-const STEP_ICON  = ["user","heart","chat","stethoscope","home","cross","dollar","phone","calendar"];
+const STEP_COLOR = ["#4a7fd6","#e36aa0","#f0a500","#0fa3a3","#2b8fb3","#e8763b","#e23b3b","#2e9e5b","#ef5350","#7e57c2"];
+const STEP_ICON  = ["user","heart","chat","stethoscope","stethoscope","home","cross","dollar","phone","calendar"];
 const ICONS = {
   user:'<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
   heart:'<path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>',
@@ -961,6 +1032,23 @@ function X(en,es,vals){
   if(vals) for(let i=0;i<vals.length;i++) s = s.split("{"+i+"}").join(vals[i]);
   return s;
 }
+/* X2 — reword a string for en/es WITHOUT dropping the other four languages back to
+   English. Changing an English key breaks the XTRA lookup for hmn/vi/tl/pa, so the
+   old (translated) wording keeps serving them until the new one is translated. */
+function X2(newEn,newEs,oldEn,oldEs,vals){
+  return (lang==="en"||lang==="es") ? X(newEn,newEs,vals) : X(oldEn,oldEs,vals);
+}
+/* Renewal link (2026-09-05): the coordinator adds &renewal=1 for returning families,
+   which reveals the "did last year's plan help?" question. Never read from storage. */
+const RENEWAL = new URLSearchParams(location.search).has("renewal");
+/* Age in whole years from the dob field (YYYY-MM-DD), or null when unknown. Used only
+   to show the school-age vs adult wording of one question. */
+function personAge(){
+  const m=String(data.dob||"").match(/^(\d{4})-(\d{2})-(\d{2})$/); if(!m) return null;
+  const b=new Date(+m[1],+m[2]-1,+m[3]), n=new Date();
+  let a=n.getFullYear()-b.getFullYear(); if(n<new Date(n.getFullYear(),b.getMonth(),b.getDate())) a--;
+  return a;
+}
 const tx = o => { if(!o) return ""; const v=o[lang]; if(v!=null) return v;
   const k=o.en, t=XTRA[lang], r=(t && typeof k==="string") ? t[k] : null;
   return r!=null ? r : (k ?? ""); };
@@ -995,7 +1083,9 @@ function renderStepper(){
   if (idx < 0 || idx > STEPS.length){ w.style.display="none"; return; }  // hide on welcome/done
   w.style.display="block";
   const total = STEPS.length + 1; // steps + review
-  let html = STEPS.map((s,i)=>`<button type="button" class="seg ${i===idx?"active":""} ${i<idx?"done":""}" data-go="${i}" title="${esc(tx(s.title))}" aria-label="${esc(tx(s.title))}">${i+1}</button>`).join("");
+  /* tabindex: only the current tile is in the tab order, so the stepper is ONE stop,
+     not ten. Every tile stays clickable and reachable with the mouse/finger. */
+  let html = STEPS.map((s,i)=>`<button type="button" class="seg ${i===idx?"active":""} ${i<idx?"done":""}" data-go="${i}" tabindex="${i===idx?0:-1}" title="${esc(tx(s.title))}" aria-label="${esc(tx(s.title))}">${i+1}</button>`).join("");
   html += `<button type="button" class="seg ${idx===STEPS.length?"active":""}" data-go="${STEPS.length}" title="${esc(tx(STEP_REVIEW_SHORT))}" aria-label="${esc(tx(STEP_REVIEW_SHORT))}">📑</button>`;
   const bar = document.getElementById("segBar");
   bar.innerHTML = html;
@@ -1028,12 +1118,18 @@ function renderWelcome(){
   d.innerHTML = `
     ${ inviteName ? `<div class="hello">${X("Hi","¡Hola")} ${esc(inviteName)}! 👋</div>` : "" }
     <div class="big">📋</div>
+    <!-- 2026-09-05: language picker FIRST. It sat 1,043px down, under 195 words of
+         English — a Hmong or Punjabi parent scrolled 1.4 screens of a language they
+         can't read to find theirs. -->
+    <div class="langpick">
+      ${LANGS.map(L=>`<div class="chip ${lang===L.c?"on":""}" role="button" tabindex="0" aria-pressed="${lang===L.c}" data-l="${L.c}">${L.f?L.f+" ":""}${L.n}</div>`).join("")}
+    </div>
     <h1>${X("Let's get ready for your meeting","Preparémonos para su reunión")}</h1>
     <p>${X("A few short, friendly questions before your Individual Program Plan (IPP) meeting. It takes a few minutes and helps your coordinator prepare.","Unas preguntas cortas y amables antes de su reunión del Plan de Programa Individual (IPP). Le toma unos minutos y ayuda a su coordinador a prepararse.")}</p>
     <div class="wpts">
-      <div><span class="e">⏱️</span><span>${X("Takes about 5–7 minutes","Toma unos 5–7 minutos")}</span></div>
+      <div><span class="e">⏱️</span><span>${X2("About 10 minutes — most families skip half of it","Unos 10 minutos — la mayoría omite la mitad","Takes about 5–7 minutes","Toma unos 5–7 minutos")}</span></div>
       <div><span class="e">💾</span><span>${X("Saves itself — you can leave and come back","Se guarda solo — puede salir y continuar después")}</span></div>
-      <div><span class="e">✅</span><span>${X("Almost everything is optional — share what you can","Casi todo es opcional — comparta lo que pueda")}</span></div>
+      <div><span class="e">✅</span><span>${X2("Only 1 question is required — everything else is up to you","Solo 1 pregunta es obligatoria — lo demás es opcional","Almost everything is optional — share what you can","Casi todo es opcional — comparta lo que pueda")}</span></div>
       <div><span class="e">🔒</span><span>${X("Private until you press Send","Privado hasta que presione Enviar")}</span></div>
     </div>
     <div class="trust">
@@ -1046,15 +1142,12 @@ function renderWelcome(){
     </div>
     <div class="trust">
       <span class="ti">🔐</span>
-      <span>${X("Your answers stay on this device while you fill out the form. When you finish, you send them to your Service Coordinator by email using your own email app. The message you send is encrypted so only your Service Coordinator can read it. This form is designed to protect your private health information, consistent with privacy laws, including HIPAA.","Sus respuestas permanecen en este dispositivo mientras llena el formulario. Al terminar, usted las envía a su Coordinador de Servicios por correo electrónico usando su propia aplicación de correo. El mensaje que envía va cifrado para que solo su Coordinador de Servicios pueda leerlo. Este formulario está diseñado para proteger su información médica privada, de acuerdo con las leyes de privacidad, incluida la ley HIPAA.")}</span>
+      <span>${(lang==="en"||lang==="es") ? X("Your answers stay on this phone. When you press Send, they're locked so only {0} can open them.","Sus respuestas se quedan en este teléfono. Al presionar Enviar, se cierran con llave para que solo {0} pueda abrirlas.",[esc(coordName)]) : X("Your answers stay on this device while you fill out the form. When you finish, you send them to your Service Coordinator by email using your own email app. The message you send is encrypted so only your Service Coordinator can read it. This form is designed to protect your private health information, consistent with privacy laws, including HIPAA.","Sus respuestas permanecen en este dispositivo mientras llena el formulario. Al terminar, usted las envía a su Coordinador de Servicios por correo electrónico usando su propia aplicación de correo. El mensaje que envía va cifrado para que solo su Coordinador de Servicios pueda leerlo. Este formulario está diseñado para proteger su información médica privada, de acuerdo con las leyes de privacidad, incluida la ley HIPAA.")}</span>
     </div>
     ${ bookUrl ? `<div class="trust bookwel">
       <span class="ti">📅</span>
       <span>${X("Want to pick the meeting time yourself? Choose a time that works for you — online or in person.","¿Quiere elegir usted la hora de la reunión? Escoja el horario que mejor le convenga — en línea o en persona.")} <a href="${esc(bookUrl)}" target="_blank" rel="noopener" id="welBookLink"><b>${X("Pick a meeting time","Elegir la hora de la reunión")} →</b></a></span>
     </div>` : "" }
-    <div class="langpick">
-      ${LANGS.map(L=>`<div class="chip ${lang===L.c?"on":""}" role="button" tabindex="0" aria-pressed="${lang===L.c}" data-l="${L.c}">${L.f?L.f+" ":""}${L.n}</div>`).join("")}
-    </div>
     <div class="nav"><button class="btn primary" id="startBtn">${ hasDraft() ? (X("Continue where I left off","Continuar donde quedó")) : tx(T.start) } →</button></div>
     ${ hasDraft() ? `<div class="saved">↩︎ <b>${X("You have saved progress on this device.","Tiene progreso guardado en este dispositivo.")}</b> <a href="#" id="startOver" style="margin-left:6px;color:inherit;text-decoration:underline">${X("Start over","Empezar de nuevo")}</a></div>` : "" }
   `;
@@ -1089,7 +1182,9 @@ function locOptLabel(f,v){ const o=f&&f.options?f.options.find(o=>o.v===v):null;
 function fieldByKey(key){ for(const s of STEPS){ const f=s.fields.find(x=>x.key===key); if(f) return f; } return null; }
 
 function fieldHTML(f){
-  const hide = (f.showIf && !showIfMet(f)) ? `style="display:none"` : "";
+  /* 2026-09-05: every gate decides FIRST-PAINT visibility, not only showIf — otherwise
+     an age- or renewal-gated field flashes visible until applyShowIf next runs. */
+  const hide = ((f.showIf||f.ageOnly||f.renewalOnly||f.sinceKey) && !showIfMet(f)) ? `style="display:none"` : "";
   // info-only note (no input) — e.g. Medic Alert "would like info"
   if (f.type==="note"){
     return `<div class="field" data-fieldkey="${f.key}" ${hide}><div class="notebox"><span>ℹ️</span><span>${tx(f.label)}</span></div></div>`;
@@ -1112,7 +1207,14 @@ function fieldHTML(f){
   const tip  = f.tip ? `<div class="tipbox"><span>💊</span><span>${tx(f.tip)}</span></div>` : "";
   let inner = "";
   if (["text","tel","email","date"].includes(f.type)){
-    inner = `<input type="${f.type}" data-key="${f.key}" value="${esc(data[f.key]||"")}" placeholder="${tx(f.ph)||""}">`;
+    /* 2026-09-05: inputmode gives amounts/hours a number keyboard; autocomplete is set
+       ONLY on the respondent's own fields — never on the consumer's name, or the phone
+       would offer the parent's name for the person receiving services. Single-line
+       text fields get the same mic as textareas (17 of them had none). */
+    const micT = (f.type==="text" && (window.SpeechRecognition||window.webkitSpeechRecognition) && SPEECH_LOCALE[lang])
+      ? `<button type="button" class="micbtn" data-mic="${f.key}" title="${X("Speak instead of typing","Hablar en vez de escribir")}" aria-label="${X("Speak instead of typing","Hablar en vez de escribir")}">🎤</button>` : "";
+    inner = `<div class="tawrap"><input type="${f.type}" data-key="${f.key}" value="${esc(data[f.key]||"")}" placeholder="${tx(f.ph)||""}"${f.inputmode?` inputmode="${f.inputmode}"`:""}${f.autocomplete?` autocomplete="${f.autocomplete}"`:""}>${micT}</div>`
+          + (micT?`<div class="micstatus" data-micstatus="${f.key}" hidden></div>`:"");
   } else if (f.type==="dob3"){
     // "Dates simpler": three dropdowns instead of a date picker. Writes the same
     // ISO YYYY-MM-DD into data[key], so the payload/fence/IPP import are unchanged.
@@ -1493,6 +1595,17 @@ function stepDose(s,dir){
 }
 
 function showIfMet(f){
+  /* 2026-09-05: two more gates. renewalOnly → only on a &renewal=1 link (returning
+     families). ageOnly → "youth" under 22 (school question) or "adult" (work/day
+     program); an unknown DOB shows the adult wording, since most consumers are. */
+  if(f.renewalOnly && !RENEWAL) return false;
+  /* Continuation mode: a section whose "Since last year" chip says "No changes" hides
+     its other fields. The coordinator already holds last year's answers in the IPP;
+     the family only reports what changed. Zero egress, no second form. */
+  if(f.sinceKey && RENEWAL && toArr(data[f.sinceKey]).includes("No changes")) return false;
+  if(f.ageOnly){ const a=personAge(); const youth=(a!==null && a<22);
+    if(f.ageOnly==="youth" && !youth) return false;
+    if(f.ageOnly==="adult" && youth) return false; }
   if(!f.showIf) return true;
   const cur=toArr(data[f.showIf[0]]);
   const want=Array.isArray(f.showIf[1])?f.showIf[1]:[f.showIf[1]];
@@ -1500,7 +1613,7 @@ function showIfMet(f){
 }
 function applyShowIf(step){
   step.fields.forEach(f=>{
-    if(!f.showIf) return;
+    if(!(f.showIf||f.ageOnly||f.renewalOnly||f.sinceKey)) return;
     const el=stage.querySelector(`.field[data-fieldkey="${f.key}"]`);
     if(el) el.style.display = showIfMet(f) ? "" : "none";
   });
@@ -1516,10 +1629,16 @@ function renderReview(){
     html+=`<div id="nameWarn" style="background:#fdecea;border:1px solid #f3bdb6;color:#9a2820;border-radius:10px;padding:11px 13px;margin:0 0 14px;font-size:14px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">⚠️ <b>${X("The person's name is missing","Falta el nombre de la persona")}</b> — ${X("it's the only thing needed to send.","es lo único necesario para enviar.")} <a href="#" id="fixName" style="color:#9a2820;font-weight:700">${X("Add the name (step 1) →","Agregar nombre (paso 1) →")}</a></div>`;
   }
   STEPS.forEach((step,si)=>{
-    const items=step.fields.filter(f=>f.type!=="note"&&f.type!=="booking").map(f=>{
-      const val=displayValLoc(f);   // family-facing: translated option labels/months
-      return `<div class="rev-item"><div class="k">${tx(f.label)}</div><div class="v ${val?"":"empty"}">${val?esc(val):tx(T.blank)}</div></div>`;
-    }).join("");
+    /* 2026-09-05: answered rows first; blank ones collapse behind one toggle. The
+       review measured 4,048px with 24 of 50 rows reading "(left blank)" — half the
+       last scroll before Send was a list of things the family had not done. */
+    const row=f=>{ const val=displayValLoc(f);   // family-facing: translated option labels/months
+      return `<div class="rev-item"><div class="k">${tx(f.label)}</div><div class="v ${val?"":"empty"}">${val?esc(val):tx(T.blank)}</div></div>`; };
+    const vis=step.fields.filter(f=>f.type!=="note"&&f.type!=="booking"&&showIfMet(f));
+    const answered=vis.filter(f=>displayValLoc(f)), blank=vis.filter(f=>!displayValLoc(f));
+    const items=answered.map(row).join("")
+      +(blank.length?`<button type="button" class="edit rev-more" data-more="${si}">${X("Show {0} unanswered","Mostrar {0} sin responder",[blank.length])}</button>
+        <div class="rev-blank" data-blank="${si}" hidden>${blank.map(row).join("")}</div>`:"");
     html+=`<div class="rev-sec"><div class="rev-head"><span class="rev-ic">${stepSVG(STEP_ICON[si],17,STEP_COLOR[si])} ${tx(step.title)}</span>
         <button class="edit" data-go="${si}">✎ ${tx(T.edit)}</button></div>
         <div class="rev-body">${items}</div></div>`;
@@ -1534,6 +1653,7 @@ function renderReview(){
       <p class="sendto" id="sendTo"></p>
       <textarea id="fallbackText" readonly></textarea>
       <div class="fbtns">
+        <button class="btn primary" id="shareBtn" style="display:none">📲 ${X("Send","Enviar")}</button>
         <button class="btn blue" id="copyBtn">📋 ${X("Copy","Copiar")}</button>
         <button class="btn gmail" id="gmailBtn">✉️ ${X("Open in Gmail","Abrir en Gmail")}</button>
         <button class="btn primary" id="emailBtn">📧 ${X("Email app","App de correo")}</button>
@@ -1542,7 +1662,14 @@ function renderReview(){
     </div>`;
   d.innerHTML=html; stage.appendChild(d);
   d.querySelector("#backBtn").onclick=()=>{ idx--; persist(); render(); };
-  d.querySelectorAll(".edit").forEach(b=>b.onclick=()=>{ idx=+b.dataset.go; persist(); render(); });
+  /* .rev-more shares the .edit look but must NOT jump steps — it has no data-go. */
+  d.querySelectorAll(".edit:not(.rev-more)").forEach(b=>b.onclick=()=>{ idx=+b.dataset.go; persist(); render(); });
+  d.querySelectorAll(".rev-more").forEach(b=>b.onclick=()=>{
+    const box=d.querySelector(`[data-blank="${b.dataset.more}"]`); if(!box) return;
+    box.hidden=!box.hidden; b.setAttribute("aria-expanded",String(!box.hidden));
+    if(!box.hidden) b.textContent=X("Hide unanswered","Ocultar sin responder");
+    else b.textContent=X("Show {0} unanswered","Mostrar {0} sin responder",[box.querySelectorAll(".rev-item").length]);
+  });
   d.querySelector("#sendBtn").onclick=submit;
   const _fn=d.querySelector("#fixName"); if(_fn) _fn.onclick=(e)=>{ e.preventDefault(); idx=0; persist(); render(); };
 }
@@ -1596,6 +1723,7 @@ function renderDone(){
     <p>${ window.__sendActed
       ? X("Your answers were sent securely to <b>{0}</b>. They'll review everything before your IPP meeting so your time together can focus on you and your loved one — not paperwork.","Sus respuestas fueron enviadas de forma segura a <b>{0}</b>. Las revisará antes de su reunión del IPP para que el tiempo juntos se enfoque en usted y su ser querido — no en el papeleo.",[name])
       : X("If you already sent your answers to <b>{0}</b>, they'll review everything before your IPP meeting. If not, no problem — you can share your answers at the meeting.","Si ya envió sus respuestas a <b>{0}</b>, las revisará antes de su reunión del IPP. Si no, no hay problema — puede compartir sus respuestas en la reunión.",[name]) }</p>
+    ${ window.__receiptCode ? `<div class="notebox"><b>${X("Your reference code","Su código de referencia")}: <code>${esc(window.__receiptCode)}</code></b><br>${X("If {0} asks whether your answers arrived, give them this code.","Si {0} pregunta si sus respuestas llegaron, dele este código.",[name])}</div>` : "" }
     <div class="done-next">
       <div><span class="e">📅</span><span>${ bookUrl
         ? X("Want to pick the meeting time yourself? Choose a time that works for you — online or in person.","¿Quiere elegir usted la hora de la reunión? Escoja el horario que mejor le convenga — en línea o en persona.")
@@ -1664,8 +1792,17 @@ function bringHTML(){
    3b) 📷 PHOTO SCAN — med bottles & insurance cards
    OCR runs entirely IN THE BROWSER (tesseract.js, lazy-loaded from a CDN on
    first use). The photo is processed in memory and never stored, uploaded,
-   or added to the answers — zero PHI egress. Offline copies simply show a
-   friendly "needs internet" note if the library can't load.
+   or added to the answers. Offline copies simply show a friendly "needs
+   internet" note if the library can't load.
+   SCOPE OF THAT CLAIM (2026-09-03): the form sends no photo anywhere, and SRI on
+   the entry script now blocks the worst attack — a swapped CDN asset rewriting
+   window.VMRC_CONFIG.pubKey to encrypt every intake to someone else's key. What
+   SRI does NOT cover is tesseract's own runtime fetches (worker.min.js, the wasm
+   core, eng.traineddata), which carry no integrity metadata. A hostile CDN could
+   therefore still exfiltrate the photo from inside the worker. The worker has no
+   DOM or window access, so it cannot touch the keys. Closing the residual needs
+   vendoring (~15MB) and is deliberately deferred — so this is "no egress by
+   design", not "no egress under a compromised CDN".
    ═══════════════════════════════════════════════════════════════════ */
 let _tessP=null;
 function loadTesseract(){
@@ -1673,6 +1810,17 @@ function loadTesseract(){
   if(_tessP) return _tessP;
   _tessP=new Promise((res,rej)=>{ const s=document.createElement("script");
     s.src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js";
+    /* Subresource Integrity (2026-09-03). This script runs in the origin that holds
+       every plaintext answer, the legal name and the DOB BEFORE encryption, so a
+       substituted CDN asset would get arbitrary script execution against unencrypted
+       PHI and defeat the whole envelope design. The hash was verified byte-identical
+       from two independent CDNs (jsdelivr + unpkg) at pin time. A mismatch makes the
+       browser refuse the script, which surfaces here as the normal "offline" path —
+       OCR simply stays unavailable and every other feature is untouched.
+       KNOWN LIMIT: tesseract.js fetches its own worker/wasm/language data at runtime;
+       SRI covers only this entry script. Full coverage needs vendoring (~15MB). */
+    s.integrity="sha384-GJqSu7vueQ9qN0E9yLPb3Wtpd7OrgK8KmYzC8T1IysG1bcvxvIO4qtYR/D3A991F";
+    s.crossOrigin="anonymous";
     s.onload=()=>res(); s.onerror=()=>{ _tessP=null; rej(new Error("offline")); };
     document.head.appendChild(s); });
   return _tessP;
@@ -1845,7 +1993,15 @@ async function speakPage(){
   let played=0;
   // The review screen reads the family's ANSWERS. Never probe the audio server
   // there (URL hashes would leak answer text) and never use cloud voices.
-  const privatePage = idx===STEPS.length;
+  // 2026-09-03: this must cover the THANK-YOU screen too (idx === STEPS.length+1),
+  // not just review. bringHTML() renders .bri lines derived from the answers — the
+  // actual insurance plan names, plus the presence of medications, IHSS, SSI/SSDI
+  // and a communication device. With `===` those chunks were probed as audio
+  // clips, so playClip() fetched AUDIO_BASE/<lang>/<fnv64(text)>.mp3 and put a
+  // hash of that text in a URL, landing in the host's access logs against the
+  // family's IP. fnv64 is not a KDF: for a fixed option set those hashes are
+  // trivially reversible by precomputation. `>=` closes it.
+  const privatePage = idx>=STEPS.length;
   for(const c of chunks){
     if(tok!==speakToken) return;                     // stopped / navigated away
     let ok = (!privatePage && CLIP_LANGS[lang]) ? await playClip(c,tok) : false;
@@ -1883,7 +2039,7 @@ function wireMic(node,step){
       if(st){ st.hidden=false; st.textContent="🎤 "+X("Listening… speak now, then pause.","Escuchando… hable ahora y luego haga una pausa."); }
       r.onresult=e=>{
         const t=((e.results[0]&&e.results[0][0]&&e.results[0][0].transcript)||"").trim();
-        if(t){ const ta=stage.querySelector(`textarea[data-key="${key}"]`);
+        if(t){ const ta=stage.querySelector(`textarea[data-key="${key}"], input[data-key="${key}"]`);
           if(ta){ ta.value=(ta.value?ta.value.trim()+" ":"")+t;
             ta.dispatchEvent(new Event("input",{bubbles:true})); } }
       };
@@ -1901,7 +2057,14 @@ function wireMic(node,step){
 function buildPayload(){
   const answers={};
   const SKIP=["legal_name","preferred_name","dob"];  // captured at top level; avoid duplicate Sheet columns
-  STEPS.forEach(s=>s.fields.forEach(f=>{ if(f.type!=="note" && f.type!=="booking" && !SKIP.includes(f.key)) answers[f.key]=displayVal(f); }));
+  /* 2026-09-05: only ANSWERED fields go into the JSON. Every unanswered key used to
+     ride along as "key":"" — with 22 more fields (new questions + renewal gates) that
+     pushed even a name-only intake past the 1,800-char mailto guard. The importer
+     reads a.key||'' either way, and the human summary already skips blanks. */
+  STEPS.forEach(s=>s.fields.forEach(f=>{
+    if(f.type==="note" || f.type==="booking" || SKIP.includes(f.key)) return;
+    const v=displayVal(f); if(v!=null && String(v).trim()!=="") answers[f.key]=v;
+  }));
   return {
     submittedAt: new Date().toISOString(),
     lang,
@@ -1925,6 +2088,11 @@ function submit(){
     err.textContent = X("Please enter the person's name (step 1).","Por favor ingrese el nombre de la persona (paso 1).");
     err.style.display="block"; idx=0; setTimeout(()=>{persist();render();},900); return;
   }
+  /* 2026-09-05: the person's name is the ONLY enforced answer. 18 fields used to look
+     required while just this one was enforced; now every other field carries the
+     optional badge, so the badges and the gate agree. (Enforcing the respondent's name
+     too was tried and reverted: bouncing a parent to step 1 after ten steps because
+     they skipped "Your name" costs more than the blank does.) */
   const payload=buildPayload();
   // ── CLOUD SUBMISSION DISABLED (privacy / Option C) ──────────────────────────
   // The form NEVER transmits anything — no Apps Script call, no Google Sheet, no
@@ -1952,8 +2120,18 @@ function summaryText(p){
   // Full structured payload so the coordinator's IPP tool can pull in as much as
   // possible (header fields + a "Family Intake" reference panel). This travels only
   // to the coordinator the family sends it to — cloud submission is OFF.
-  var _form=Object.assign({}, p.raw||{}); delete _form.__step; delete _form.__imported;
-  s += JSON.stringify({ submittedAt:p.submittedAt, legal_name:p.legal_name, preferred_name:p.preferred_name, dob:p.dob, lang:p.lang, answers:p.answers, form:_form }) + "\n";
+  /* 2026-09-05: the `raw` snapshot is gone from the fence. It duplicated `answers`
+     (~12% of the envelope) and the template's importer reads every raw.* field it
+     wants from the top level or from answers first — verified 09-03 and again today
+     — so it never changed a single IPP draft. Punjabi Gmail headroom was 957 chars. */
+  /* 2026-09-03: this key is "raw", not "form". The IPP template's importer reads
+     obj.answers and obj.raw (IPP_Template_TEAM_SHARE.html:4285) — it has never read
+     "form", so every fallback that depends on it (uci, respondent_*, pref_language)
+     has been silently receiving {} since this block shipped. Renaming costs nothing
+     and makes emitter and importer agree. Kept rather than deleted for that reason:
+     the transport fix does not need the ~440 bytes, and dropping it would freeze the
+     mismatch in place. */
+  s += JSON.stringify({ submittedAt:p.submittedAt, legal_name:p.legal_name, preferred_name:p.preferred_name, dob:p.dob, lang:p.lang, answers:p.answers }) + "\n";
   s += "----- END -----\n";
   return s;
 }
@@ -1993,10 +2171,31 @@ async function encryptForCoordinator(text){
   // instead of a dead-end error when it lands in the wrong inbox. It names only the
   // coordinator — never the family — and needs no translation (address label, not prose).
   const tag="[IPP-INTAKE for: "+(window.VMRC_CONFIG.coordinatorName||"")+" / "+(window.VMRC_SC_ID||"")+"]";
-  return tag+"\n"+ENC_HDR+"\n"+(env.match(/.{1,76}/g)||[]).join("\n")+"\n"+ENC_END;
+  /* Integrity line BELOW the closing fence (2026-09-03). Deliberately outside the
+     fences so every existing decoder ignores it — they read only between them —
+     which makes this fully backward compatible with the 9 coordinator copies
+     already in the field. A decoder that DOES read it can tell truncation from a
+     key problem: len is the compact body length, chk the same 6 hex of SHA-256
+     the family sees as their reference code. Without this, any damage past
+     character 367 still parses as 5 dot-separated parts, dies at AES-GCM, and
+     gets reported as "sealed to a key this browser doesn't hold" — which is the
+     exact misdiagnosis that cost days on 2026-08-31. */
+  let chk="";
+  try{
+    const h=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(env));
+    chk=[...new Uint8Array(h)].slice(0,3).map(b=>b.toString(16).padStart(2,"0")).join("").toUpperCase();
+  }catch(e){}
+  return tag+"\n"+ENC_HDR+"\n"+(env.match(/.{1,76}/g)||[]).join("\n")+"\n"+ENC_END
+       + (chk ? "\n[IPP-CHECK len="+env.length+" chk="+chk+"]" : "");
 }
 
+/* Bumped on every Send tap. The ladder below runs after ~450ms of crypto, by
+   which time the family may have tapped "← Back" and re-rendered the whole
+   review DOM. Without this the ladder writes to detached nodes (TypeError →
+   unhandled rejection) and can pop a compose holding PRE-EDIT answers. */
+let sendGen=0;
 function showFallback(p){
+  const gen=++sendGen;
   const fb=document.getElementById("fallback"); fb.style.display="block";
   const text=summaryText(p);
   document.getElementById("fallbackText").value=text;
@@ -2009,18 +2208,48 @@ function showFallback(p){
   const st=document.getElementById("sendTo");
   if(st) st.innerHTML="📧 "+X("This goes to <b>{0}</b> — {1}","Esto va a <b>{0}</b> — {1}",[esc(scName),esc(email)]);
   // Subject carries NO name — the person's identity travels only inside the ciphertext.
-  const subj=encodeURIComponent(X("Meeting intake form (encrypted)","Formulario de preparación (cifrado)"));
-  const cBtn=document.getElementById("copyBtn"), gBtn=document.getElementById("gmailBtn"), eBtn=document.getElementById("emailBtn");
-  [cBtn,gBtn,eBtn].forEach(b=>{ b.disabled=true; b.style.opacity=".55"; });
-  encryptForCoordinator(text).then(enc=>{
+  const subjPlain=X("Meeting intake form (encrypted)","Formulario de preparación (cifrado)");
+  const subj=encodeURIComponent(subjPlain);
+  const cBtn=document.getElementById("copyBtn"), gBtn=document.getElementById("gmailBtn"), eBtn=document.getElementById("emailBtn"), shareBtn=document.getElementById("shareBtn");
+  [cBtn,gBtn,eBtn,shareBtn].forEach(b=>{ b.disabled=true; b.style.opacity=".55"; });
+  /* Receipt code (2026-09-03). Every failure mode in this send path is SILENT: a
+     truncated SMS, a blocked popup, a closed compose tab, a mis-picked share target.
+     None of them tell the family or the coordinator that anything went wrong. This
+     turns silent loss into something detectable, with no server and no egress:
+     6 hex chars of SHA-256 over the WHITESPACE-STRIPPED envelope body. Hashing the
+     compact form (not the wrapped text) means line-rewrapping by a mail client does
+     not change the code, while losing even one ciphertext character does — so a
+     matching code proves the payload arrived byte-intact. The coordinator's decoder
+     computes the same value on a successful open; if he never receives anything, he
+     can simply ask "do you have a reference code?" and know whether they finished. */
+  const receiptCode=async(enc)=>{
+    try{
+      const m=enc.match(/-----\s*IPP-INTAKE ENCRYPTED v1\s*-----\s*([\s\S]*?)\s*-----\s*END\s*-----/);
+      const compact=(m?m[1]:"").replace(/\s+/g,"");
+      if(!compact) return "";
+      const h=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(compact));
+      return [...new Uint8Array(h)].slice(0,3).map(b=>b.toString(16).padStart(2,"0")).join("").toUpperCase();
+    }catch(e){ return ""; }
+  };
+  encryptForCoordinator(text).then(async enc=>{
+    window.__receiptCode=await receiptCode(enc);
     const note=X("This message is encrypted for your Service Coordinator. Please send it exactly as it is — do not edit it.","Este mensaje está cifrado para su Coordinador de Servicios. Envíelo tal como está — no lo edite.");
-    const msg=note+"\n\n"+enc, body=encodeURIComponent(msg);
+    const msg=note+"\n\n"+enc;
+    /* URL bodies carry a SHORT ASCII note instead of the translated one (2026-09-03).
+       Non-Latin scripts triple in length under encodeURIComponent — the Punjabi note
+       alone cost ~1,289 chars of the send budget, which is why Punjabi and Vietnamese
+       families were pushed onto the degraded paste path with ZERO answers filled. The
+       translated note is already on screen directly above these buttons, so nothing is
+       lost by keeping it out of the link. Clipboard and Share still carry the full
+       translated version in `msg`. */
+    const urlMsg="Encrypted intake for your Service Coordinator. Please send as-is.\n\n"+enc;
+    const body=encodeURIComponent(urlMsg);
     // URL-length guard: a truncated ciphertext is unreadable (AES-GCM auth fails), so
     // never offer a transport the body won't survive. Copy has no length limit.
     const gmailURL=`https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(email)}&su=${subj}&body=${body}`;
     const mailtoURL=`mailto:${email}?subject=${subj}&body=${body}`;
     const mailtoOK=mailtoURL.length<=1800, gmailOK=gmailURL.length<=6500;
-    [cBtn,gBtn,eBtn].forEach(b=>{ b.disabled=false; b.style.opacity="1"; });
+    [cBtn,gBtn,eBtn,shareBtn].forEach(b=>{ b.disabled=false; b.style.opacity="1"; });
     const markSent=()=>{ window.__sendActed=true; };
     const manualCopy=()=>{                       // clipboard blocked → selectable fallback
       let ta=document.getElementById("encManual");
@@ -2059,7 +2288,17 @@ function showFallback(p){
     const gmailShort=`https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(email)}&su=${subj}&body=${pasteBody}`;
     const mailtoShort=`mailto:${email}?subject=${subj}&body=${pasteBody}`;
     // Gmail web compose — pre-fills To/Subject/Body in a Gmail tab, no default mail app needed
-    if(gmailOK){ gBtn.dataset.href=gmailURL; gBtn.onclick=()=>{ markSent(); window.open(gmailURL,"_blank"); }; }
+    /* 2026-09-03: this branch now mirrors the hardening its own sibling below has
+       had since 2026-08-19. It previously did a bare window.open with no clipboard
+       backup and no popup-blocked fallback, so a blocked popup opened nothing,
+       copied nothing, and still marked the send done. That was safe only while this
+       branch was never auto-fired; the ladder now fires it, so it must not lie. */
+    if(gmailOK){ gBtn.dataset.href=gmailURL; gBtn.onclick=()=>{
+      syncCopy(msg);                               // best-effort backup; the URL carries the full body
+      markSent();
+      const w=window.open(gmailURL,"_blank");      // sync inside the gesture — beats popup blockers
+      if(!w) window.location.href=gmailURL;        // blocked anyway → same-tab compose (draft is saved)
+    }; }
     else { gBtn.dataset.href=gmailShort; gBtn.onclick=()=>{
       if(!syncCopy(msg)) return manualCopy();      // no compose unless the copy really happened
       markSent(); copiedNote();
@@ -2072,12 +2311,171 @@ function showFallback(p){
       if(!syncCopy(msg)) return manualCopy();
       markSent(); copiedNote(); window.location.href=mailtoShort;
     }; }
-    // 2026-08-20 (Justin's ask): pressing "✓ Send to my Coordinator" opens the
-    // email app DIRECTLY, pre-addressed to the coordinator — no second tap.
-    // Runs moments after the Send tap, inside the browser's transient-activation
-    // window. The panel stays behind it as the fallback (Gmail / Copy) for
-    // devices with no mail app; encryption failure never reaches this line.
-    eBtn.onclick();
+    /* ── TRANSPORT LADDER (2026-09-03) ───────────────────────────────────────
+       Replaces a bare `eBtn.onclick()` that always fired the MAILTO button. That
+       was wrong for essentially every real submission: a typical intake produces a
+       ~3,660-char mailto URL against an 1,800-char guard, so `mailtoOK` is false
+       from roughly the 5th answered field onward and the tap landed in the
+       copy-then-paste branch — while `gmailOK` was TRUE (~3,700 vs 6,500) and the
+       Gmail button beside it already held the COMPLETE ciphertext. The one-click
+       path existed and was never called.
+
+       Rungs are tried best-first. Each returns:
+         "sent"      — the family completed a hand-off we could observe end to end:
+                       navigator.share() resolved, meaning they picked a target app
+                       and the sheet completed. The strongest signal available; the
+                       clipboard copy is a backup, not evidence, because a copy is
+                       possession, not delivery.
+         "attempted" — fired, but delivery is unverifiable. A compose window opened
+                       (they still have to press Send in it), or mailto handed off
+                       to the OS, which reports nothing back and does nothing at all
+                       on a PC with no registered mail handler. Stops the cascade so
+                       we never open two things, but must NOT claim success.
+         "failed"    — did not happen; fall through to the next rung. */
+    /* Every rung reports what it actually did. Guarded because the review DOM may
+       have been re-rendered while the crypto ran (see sendGen). */
+    const say=(t,ok)=>{ const n=document.getElementById("sendErr");
+      if(!n || gen!==sendGen) return;
+      n.textContent=t; n.classList.toggle("ok",!!ok); n.style.display="block"; };
+    const shareLead=X("Email this to {0} (please use email, not a text message)",
+                      "Envíe esto por correo a {0} (use correo, no un mensaje de texto)",[email]);
+    /* FILE share, tried before text share (2026-09-03). This is the single change
+       that removes the whole silent-corruption class: an attachment is not split
+       into SMS segments, not truncated by a segment cap, not linkified, not
+       quote-prefixed on forward, and not soft-wrapped with the zero-width
+       characters that JS \s does NOT match (U+200B, U+00AD, U+2060) and which
+       otherwise sail past the envelope's only structural check and die at
+       AES-GCM. Same single tap for the family — same button, same share sheet.
+       iOS historically requires `files` to be the ONLY property, so try
+       files+text first (Android accepts it, and it keeps the address visible in
+       the sheet preview) and fall back to files-only. The lead line also goes
+       INSIDE the file, where the decoder tolerates it above the fence. */
+    const shareFile=async()=>{
+      if(!(navigator.share && navigator.canShare && window.File)) return "failed";
+      let f;
+      try{ f=new File([shareLead+"\n\n"+msg],"ipp-intake.txt",{type:"text/plain"}); }
+      catch(e){ return "failed"; }
+      let payload=null;
+      if(navigator.canShare({files:[f], text:shareLead})) payload={files:[f], text:shareLead};
+      else if(navigator.canShare({files:[f]})) payload={files:[f]};
+      if(!payload) return "failed";
+      try{ await navigator.share(payload); return "sent"; }
+      catch(e){ return (e && e.name==="AbortError") ? "cancelled" : "failed"; }
+    };
+    const shareText=async()=>{
+      if(!navigator.share) return "failed";
+      /* The share sheet opens OVER the "this goes to <Name>" line on the panel, and
+         navigator.share cannot name a recipient — the family picks any app and any
+         contact. Lead the payload with the address so the intended destination is
+         visible in the share preview and in whatever app they choose. Share has no
+         length budget, so this costs nothing. (Mis-delivery stays a privacy non-event:
+         the envelope is sealed to the coordinator's key, so a relative who receives
+         it cannot open it — but they also cannot help, hence making it obvious.) */
+      /* Say EMAIL explicitly, not just the address. The share sheet offers Messages
+         next to Mail, and a text message is the one target that can silently destroy
+         this payload: at ~2,750 chars it is ~19 SMS segments — and the translated
+         note contains an em dash, which is outside GSM-7 and re-encodes the whole
+         message to UCS-2 at 67 chars/segment, i.e. ~42 segments. Documented US
+         carrier caps run 5-10, and truncation past the cap is documented behaviour.
+         A truncated AES-GCM ciphertext fails authentication and is unrecoverable,
+         while the sender still gets a "Delivered" receipt. */
+      try{ await navigator.share({title:subjPlain, text:shareLead+"\n\n"+msg}); return "sent"; }
+      catch(e){
+        /* AbortError = the family DELIBERATELY tapped Cancel. Stop the ladder and
+           show the panel — auto-opening Gmail on top of a cancel would override a
+           choice they just made. Any other error (NotAllowedError when transient
+           activation has lapsed, or no share targets at all) is a capability
+           failure, not a decision, so fall through to the next rung. */
+        return (e && e.name==="AbortError") ? "cancelled" : "failed";
+      }
+    };
+    const gmailFull=()=>{
+      if(!gmailOK) return "failed";
+      /* Best-effort clipboard backup — NOT a precondition. Unlike the paste-note
+         variant, this URL already carries the whole envelope, so a clipboard that
+         is unavailable (no permission, unfocused document) must not block a send
+         that would otherwise work. */
+      syncCopy(msg);
+      const w=window.open(gmailURL,"_blank");
+      /* Popup blocked → fall THROUGH to the next rung rather than navigating this
+         tab away. The family tapped Send, not "leave this page": yanking them to
+         Gmail would destroy the panel and the thank-you screen behind it. The
+         manual "Open in Gmail" button below still does the same-tab rescue,
+         because there the navigation is exactly what they asked for. */
+      if(!w) return "failed";
+      /* The compose opens in a NEW TAB, so this panel is what the family comes back
+         to — it must not sit silent. Without a word here the commonest desktop path
+         (not signed into Google → Gmail shows a login wall) leaves them staring at
+         an unexplained page with a clipboard copy nobody mentioned. */
+      say(X("✓ A Gmail message to {0} just opened in a new tab — please press Send there to finish. (Your answers were also copied, in case you need to paste them.)",
+            "✓ Se abrió un mensaje de Gmail para {0} en una pestaña nueva — presione Enviar allí para terminar. (También copiamos sus respuestas, por si necesita pegarlas.)",[email]), true);
+      /* "attempted", NOT "sent": a compose tab existing is not a send. The family
+         tapped one button and a window appeared — they may have no Google account
+         (sign-in wall), may close the tab, or may be in an in-app webview that
+         returns a live handle and never navigates. Claiming delivery here would
+         make a lost submission invisible to the coordinator. */
+      return "attempted";
+    };
+    const mailtoFull=()=>{
+      if(!mailtoOK) return "failed";
+      syncCopy(msg);
+      /* Say this BEFORE navigating, and phrase it as an expectation rather than a
+         fact: mailto reports nothing back, and on a PC with no registered handler
+         it does nothing at all. Silence here was a dead end with no way forward. */
+      say(X("Your email app should be opening with a message ready for {0}. If nothing opened, your answers were copied — use the buttons below.",
+            "Su aplicación de correo debería abrirse con un mensaje listo para {0}. Si no se abrió nada, copiamos sus respuestas — use los botones de abajo.",[email]), false);
+      window.location.href=mailtoURL;
+      return "attempted";
+    };
+    /* Web Share REQUIRES transient activation, and the budget here is tighter than
+       it looks: measured 433-457ms from tap to buttons-enabled on a desktop, and a
+       low-end phone doing RSA-OAEP + AES-GCM + deflate over a ~19KB summary can take
+       seconds. Chrome's window is 5s, so slow devices are exactly where the BEST rung
+       throws NotAllowedError — and where the popup underneath is likely blocked too.
+       Both fall through and say so, and the panel's own button lets them retry with a
+       fresh gesture, which always has activation. */
+    if(navigator.share){
+      shareBtn.style.display="";
+      shareBtn.onclick=async()=>{
+        if(await shareText()!=="sent") return;     // cancelled — leave the panel as it was
+        markSent();
+        /* Confirm what actually happened. The share sheet closes over the page, so
+           without this a successful hand-off looks identical to a cancelled one. */
+        const n=document.getElementById("sendErr");
+        n.textContent="✓ "+X("Sent to your coordinator. You can close this page.","Enviado a su coordinador. Puede cerrar esta página.");
+        n.classList.add("ok"); n.style.display="block";
+      };
+    }
+    (async()=>{
+      for(const rung of [shareFile, shareText, gmailFull, mailtoFull]){
+        let r="failed";
+        try{ r=await rung(); }catch(e){ r="failed"; }
+        if(gen!==sendGen) return;             // family navigated away mid-crypto
+        if(r==="sent"){ markSent(); return; }
+        if(r==="cancelled"){                  // they chose not to send just now
+          say(X("No problem — your answers are saved. Send them with any of the buttons below whenever you're ready.",
+                "No hay problema — sus respuestas están guardadas. Envíelas con cualquiera de los botones de abajo cuando esté listo."), false);
+          return;
+        }
+        if(r==="attempted") return;           // the rung already explained itself
+      }
+      if(gen!==sendGen) return;
+      /* Nothing above could carry the payload. Do exactly what the degraded email
+         button does — copy the ciphertext, then open a compose pre-addressed to the
+         coordinator with a paste note — but deliberately WITHOUT markSent().
+         This is spelled out rather than delegating to eBtn.onclick() because that
+         handler marks the send: correct when the family taps the button themselves,
+         wrong here. They tapped Send once and we observed no hand-off at all — on a
+         desktop with no registered mail handler the navigation below opens nothing,
+         and claiming delivery would hide the lost submission from the coordinator. */
+      if(!syncCopy(msg)) return manualCopy();
+      /* Not copiedNote(): that string asserts "in the email that just opened",
+         which is exactly what we cannot know here — the navigation below opens
+         nothing on a machine with no mail handler. State only what is true. */
+      say(X("✓ Your answers were copied. Open your email to {0}, paste them into the message, and send. The buttons below can open it for you.",
+            "✓ Copiamos sus respuestas. Abra su correo para {0}, péguelas en el mensaje y envíe. Los botones de abajo pueden abrirlo por usted.",[email]), true);
+      window.location.href=mailtoShort;
+    })();
   }).catch(()=>{
     // Never fall back to sending plaintext silently.
     const err=document.getElementById("sendErr");
