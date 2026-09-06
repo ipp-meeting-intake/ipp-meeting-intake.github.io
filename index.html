@@ -412,6 +412,11 @@
   .langpick{display:flex;gap:10px;justify-content:center;margin:18px 0 4px}
   .langpick{flex-wrap:wrap}
   .langpick .chip{font-size:15px;padding:10px 20px}
+  .voicepick{margin-top:14px}
+  .vp-q{font-size:13px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+  .voicepick .vrow{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:6px}
+  .voicepick .chip{font-size:15px;padding:10px 20px}
+  .voicepick .chip:focus-visible{outline:3px solid var(--cyan);outline-offset:2px}
   .langmenu{position:absolute;right:12px;top:54px;background:var(--card);border:1px solid var(--line);
     border-radius:12px;box-shadow:var(--shadow);display:flex;flex-direction:column;min-width:172px;z-index:60;overflow:hidden}
   .langmenu .lm{background:none;border:none;text-align:left;padding:11px 15px;font-size:14.5px;font-weight:600;
@@ -610,8 +615,8 @@ const STEPS = [
       {key:"dob", type:"dob3", optional:1, label:{en:"Date of birth",es:"Fecha de nacimiento"}},
       {key:"pref_language", type:"chips", optional:1, single:1, label:{en:"Preferred language",es:"Idioma preferido"},
         options:[{v:"English",en:"English",es:"Inglés"},{v:"Spanish",en:"Spanish",es:"Español"},{v:"Hmong",en:"Hmong (Hmoob)",es:"Hmong (Hmoob)"},{v:"Vietnamese",en:"Vietnamese (Tiếng Việt)",es:"Vietnamita (Tiếng Việt)"},{v:"Tagalog",en:"Tagalog",es:"Tagalo"},{v:"Punjabi",en:"Punjabi (ਪੰਜਾਬੀ)",es:"Punyabí (ਪੰਜਾਬੀ)"},{v:"Other",en:"Other",es:"Otro"}]},
-      {key:"respondent_name", type:"text", optional:1, autocomplete:"name", label:{en:"Your name (person filling this out)",es:"Su nombre (quien completa esto)"}, ph:{en:"Your name",es:"Su nombre"}},
-      {key:"respondent_relationship", type:"text", optional:1, label:{en:"Your relationship to them",es:"Su relación con la persona"}, ph:{en:"e.g. Mother, Self, Guardian",es:"ej. Madre, Yo mismo, Tutor"}},
+      {key:"respondent_name", type:"text", optional:1, familyOnly:1, autocomplete:"name", label:{en:"Your name (person filling this out)",es:"Su nombre (quien completa esto)"}, ph:{en:"Your name",es:"Su nombre"}},
+      {key:"respondent_relationship", type:"text", optional:1, familyOnly:1, label:{en:"Your relationship to them",es:"Su relación con la persona"}, ph:{en:"e.g. Mother, Self, Guardian",es:"ej. Madre, Yo mismo, Tutor"}},
       {key:"respondent_phone", type:"tel", autocomplete:"tel", optional:1, label:{en:"Best phone number",es:"Mejor número de teléfono"}, ph:{en:"(000) 000-0000",es:"(000) 000-0000"}},
       {key:"respondent_email", type:"email", autocomplete:"email", optional:1, label:{en:"Email",es:"Correo electrónico"}, ph:{en:"name@email.com",es:"nombre@correo.com"}},
     ]},
@@ -1030,7 +1035,7 @@ const langName = c => { const L=LANGS.find(l=>l.c===c); return L?L.n:c; };
 function X(en,es,vals){
   let s = lang==="en" ? en : lang==="es" ? es : (((XTRA[lang]||{})[en]) ?? en);
   if(vals) for(let i=0;i<vals.length;i++) s = s.split("{"+i+"}").join(vals[i]);
-  return s;
+  return selfVoice(en, s, lang);          // self-advocate voice (no-op unless data.voice==="self")
 }
 /* X2 — reword a string for en/es WITHOUT dropping the other four languages back to
    English. Changing an English key breaks the XTRA lookup for hmn/vi/tl/pa, so the
@@ -1049,9 +1054,111 @@ function personAge(){
   let a=n.getFullYear()-b.getFullYear(); if(n<new Date(n.getFullYear(),b.getMonth(),b.getDate())) a--;
   return a;
 }
-const tx = o => { if(!o) return ""; const v=o[lang]; if(v!=null) return v;
+
+/* ── Self-advocate voice (2026-09-05) ─────────────────────────────────────────
+   data.voice === "self" means the person who receives services is filling this out
+   themselves. Every label, hint, intro, title and option is then addressed to YOU
+   instead of THEY/THEM. English is rewritten by rule (rewriteEn) with hand-written
+   overrides for the sentences a rule gets wrong; Spanish uses hand-written overrides
+   only — verb endings make a rule unsafe — and otherwise keeps the family wording,
+   which mostly already reads correctly in formal "usted" ("su" = their/your). The
+   other four languages keep the family wording until the interpreter pass. The
+   overrides are keyed by the ENGLISH family string, so the map is testable: every
+   key must exist in the form, or the override is dead. */
+const SELF_OVERRIDES = {
+  "About the person & you": {en:"About you", es:"Sobre usted"},
+  "Person's full legal name (VMRC)": {en:"Your full legal name (VMRC)", es:"Su nombre legal completo (VMRC)"},
+  "The name of the person who receives VMRC services — not the parent's name. This is the only answer needed to send.":
+    {en:"Your name as VMRC has it. This is the only answer needed to send.", es:"Su nombre tal como lo tiene VMRC. Es la única respuesta necesaria para enviar."},
+  "Get to know them": {en:"Get to know you", es:"Queremos conocerle mejor"},
+  "So everyone on the team knows the best way to connect with them.": {en:"So everyone on the team knows the best way to connect with you.", es:"Para que todo el equipo sepa la mejor manera de conectar con usted."},
+  "So your coordinator can plan the right supervision and supports.": {en:"So your coordinator can plan the right supports to keep you safe.", es:"Para que su coordinador planee los apoyos adecuados para su seguridad."},
+  "Other specialists they see": {en:"Other specialists you see", es:"Otros especialistas que usted ve"},
+  "Tap each specialist they see — then add the doctor's name and about when the last visit was.": {en:"Tap each specialist you see — then add the doctor's name and about when the last visit was.", es:"Toque cada especialista que usted ve — luego agregue el nombre del doctor y más o menos cuándo fue la última visita."},
+  "Goals, things they'd like to do or learn…": {en:"Goals, things you'd like to do or learn…", es:"Metas, cosas que le gustaría hacer o aprender…"},
+  "Words they use, what to do/avoid…": {en:"Words you use, what to do/avoid…", es:"Palabras que usa, qué hacer o evitar…"},
+  "e.g. Sunday dinners at Grandma's, his morning walk, music on in the car…": {en:"e.g. Sunday dinners at Grandma's, my morning walk, music on in the car…", es:"ej. las cenas de domingo con la abuela, mi caminata de la mañana, música en el carro…"},
+  "e.g. has autism, limited speech, wears Medic Alert…": {en:"e.g. I have autism, I don't talk much, I wear a Medic Alert bracelet…", es:"ej. tengo autismo, hablo poco, uso una pulsera Medic Alert…"},
+  "Anything about your family's culture, language or faith we should honor in the plan?": {en:"Anything about your culture, language or faith we should honor in the plan?", es:"¿Algo de su cultura, su idioma o su fe que debamos respetar en el plan?"},
+  "Family meeting": {en:"My planning meeting", es:"Mi reunión de planificación"},
+  "The person's name is missing": {en:"Your name is missing", es:"Falta su nombre"},
+  "Add the name (step 1) →": {en:"Add your name (step 1) →", es:"Agregar su nombre (paso 1) →"},
+  "Family drives them": {en:"My family drives me", es:"Mi familia me lleva"},
+  "Walks": {en:"I walk", es:"Camino"},
+  "Drives themselves": {en:"I drive", es:"Yo manejo"},
+  "Needs help to get around": {en:"I need help to get around", es:"Necesito ayuda para moverme"},
+  "This helps us write a plan that's truly about them — not just services.":
+    {en:"This helps us write a plan that's truly about you — not just services.", es:"Esto nos ayuda a escribir un plan que se trate realmente de usted — no solo de servicios."},
+  "What do they enjoy? Hobbies, interests, favorite things": {en:"What do you enjoy? Hobbies, interests, favorite things", es:"¿Qué disfruta? Pasatiempos, intereses, cosas favoritas"},
+  "What do people like & admire about them?": {en:"What do people like & admire about you?", es:"¿Qué es lo que la gente aprecia y admira de usted?"},
+  "What are their hopes for this year?": {en:"What are your hopes for this year?", es:"¿Cuáles son sus deseos para este año?"},
+  "Bigger picture — where do they want to live, work, or be in the community?":
+    {en:"Bigger picture — where do you want to live, work, or be in the community?", es:"A futuro — ¿dónde quiere vivir, trabajar o estar en la comunidad?"},
+  "What matters most to them?": {en:"What matters most to you?", es:"¿Qué es lo más importante para usted?"},
+  "What do they need to stay healthy and safe?": {en:"What do you need to stay healthy and safe?", es:"¿Qué necesita para cuidar su salud y estar a salvo?"},
+  "Something they did this year that made you proud": {en:"Something you did this year that you're proud of", es:"Algo que hizo este año que le hace sentir orgullo"},
+  "Who do they most like to spend time with?": {en:"Who do you most like to spend time with?", es:"¿Con quién le gusta más pasar el tiempo?"},
+  "How they communicate": {en:"How you communicate", es:"Cómo se comunica"},
+  "How do they communicate? (tap all that apply)": {en:"How do you communicate? (tap all that apply)", es:"¿Cómo se comunica? (toque todo lo que aplique)"},
+  "What helps when talking with them?": {en:"What helps when talking with you?", es:"¿Qué ayuda al hablar con usted?"},
+  "The most important section. This keeps them safe and helps us plan their care.":
+    {en:"The most important section. This keeps you safe and helps us plan your care.", es:"La sección más importante. Le mantiene seguro y nos ayuda a planear su cuidado."},
+  "What does a normal day look like, and where do they need a hand?":
+    {en:"What does a normal day look like, and where do you need a hand?", es:"¿Cómo es un día normal, y dónde necesita ayuda?"},
+  "Who do they live with?": {en:"Who do you live with?", es:"¿Con quién vive?"},
+  "What do they need help with? (tap all)": {en:"What do you need help with? (tap all)", es:"¿Con qué necesita ayuda? (toque todo)"},
+  "Do they receive any of these? (tap all)": {en:"Do you receive any of these? (tap all)", es:"¿Recibe alguno de estos? (toque todo)"},
+  "Who helps them make big decisions?": {en:"Who helps you make big decisions?", es:"¿Quién le ayuda a tomar decisiones grandes?"},
+  "How do they get around?": {en:"How do you get around?", es:"¿Cómo se transporta?"},
+  "Work or day program — what do they do now, and what would they like?":
+    {en:"Work or day program — what do you do now, and what would you like?", es:"Trabajo o programa de día — ¿qué hace ahora, y qué le gustaría?"},
+  "What are they learning at school, and what comes after school?":
+    {en:"What are you learning at school, and what comes after school?", es:"¿Qué aprende en la escuela, y qué viene después de la escuela?"},
+  "Anything else we should know to keep them safe?": {en:"Anything else we should know to keep you safe?", es:"¿Algo más que debamos saber para mantenerle seguro?"},
+  "Do they have a Medic Alert ID?": {en:"Do you have a Medic Alert ID?", es:"¿Tiene una identificación Medic Alert?"},
+  "Do they use any of these?": {en:"Do you use any of these?", es:"¿Usa alguno de estos?"},
+  "Which do they receive? (tap all)": {en:"Which do you receive? (tap all)", es:"¿Cuáles recibe? (toque todo)"},
+  "Who manages their money?": {en:"Who manages your money?", es:"¿Quién maneja su dinero?"},
+  "How does the person want to take part in the meeting?": {en:"How do you want to take part in the meeting?", es:"¿Cómo quiere participar en la reunión?"},
+  "Share their wishes through me": {en:"Someone else shares my wishes for me", es:"Otra persona comparte mis deseos por mí"},
+  "They decide on their own": {en:"I decide on my own", es:"Decido por mi cuenta"},
+  "With help from family": {en:"With help from my family", es:"Con ayuda de mi familia"},
+  "Themselves": {en:"Myself", es:"Yo"},
+  "Anything else you'd like your coordinator to know?": {en:"Anything else you'd like your coordinator to know?", es:"¿Algo más que le gustaría que su coordinador sepa?"},
+};
+function rewriteEn(s){
+  return String(s)
+    .replace(/\bThey're\b/g,"You're").replace(/\bthey're\b/g,"you're")
+    .replace(/\bthemselves\b/g,"yourself")
+    .replace(/\bTheirs\b/g,"Yours").replace(/\btheirs\b/g,"yours")
+    .replace(/\bTheir\b/g,"Your").replace(/\btheir\b/g,"your")
+    .replace(/\bThem\b/g,"You").replace(/\bthem\b/g,"you")
+    .replace(/\bThey\b/g,"You").replace(/\bthey\b/g,"you")
+    .replace(/\bThe person's\b/g,"Your").replace(/\bthe person's\b/g,"your")
+    .replace(/\bThe person\b/g,"You").replace(/\bthe person\b/g,"you")
+    .replace(/\bDoes you\b/g,"Do you").replace(/\bdoes you\b/g,"do you")
+    .replace(/\bIs you\b/g,"Are you").replace(/\bis you\b/g,"are you");
+}
+/* The RULE applies only to question-set strings (titles, intros, labels, hints,
+   placeholders, options). Review 2026-09-05 found that applying it to every X()/tx()
+   string turned the welcome's privacy line into "you're locked so only Justin can
+   open you" and the footer into "when you send you". Copy about the coordinator, the
+   send flow and the device keeps its pronouns. Exact-key OVERRIDES still apply
+   anywhere — but never to a string with a {0} placeholder, because X() fills the
+   placeholder before selfVoice() runs. */
+const SELF_RULE_KEYS = new Set();
+STEPS.forEach(s=>{ SELF_RULE_KEYS.add(s.title.en); if(s.intro) SELF_RULE_KEYS.add(s.intro.en);
+  s.fields.forEach(f=>{ ["label","hint","ph"].forEach(k=>{ if(f[k]) SELF_RULE_KEYS.add(f[k].en); });
+    (f.options||[]).forEach(o=>SELF_RULE_KEYS.add(o.en)); }); });
+function voiceSelf(){ return typeof data!=="undefined" && data && data.voice==="self" && (lang==="en"||lang==="es"); }
+function selfVoice(enKey, s, l){
+  if(!voiceSelf()) return s;
+  const ov=SELF_OVERRIDES[enKey]; if(ov) return ov[l]||ov.en||s;
+  return (l==="en" && SELF_RULE_KEYS.has(enKey)) ? rewriteEn(s) : s;
+}
+const tx = o => { if(!o) return ""; const v=o[lang]; if(v!=null) return selfVoice(o.en, v, lang);
   const k=o.en, t=XTRA[lang], r=(t && typeof k==="string") ? t[k] : null;
-  return r!=null ? r : (k ?? ""); };
+  return selfVoice(k, r!=null ? r : (k ?? ""), lang); };   // self-advocate voice: no-op unless data.voice==="self"
 
 /* ═══════════════════════════════════════════════════════════════════
    3) RENDER
@@ -1124,10 +1231,19 @@ function renderWelcome(){
     <div class="langpick">
       ${LANGS.map(L=>`<div class="chip ${lang===L.c?"on":""}" role="button" tabindex="0" aria-pressed="${lang===L.c}" data-l="${L.c}">${L.f?L.f+" ":""}${L.n}</div>`).join("")}
     </div>
+    <!-- Self-advocate switch (2026-09-05): who is answering decides the voice of every
+         question — "they/them" for a family member, "you" for the person themselves. -->
+    <div class="voicepick">
+      <div class="vp-q">${X("Who is filling this out?","¿Quién está llenando esto?")}</div>
+      <div class="vrow">
+        <div class="chip ${(data.voice||"family")==="family"?"on":""}" role="button" tabindex="0" aria-pressed="${(data.voice||"family")==="family"}" data-v="family">${X("A parent or family member","Un padre, madre o familiar")}</div>
+        <div class="chip ${data.voice==="self"?"on":""}" role="button" tabindex="0" aria-pressed="${data.voice==="self"}" data-v="self">${X("I'm filling this out for myself","Lo estoy llenando yo")}</div>
+      </div>
+    </div>
     <h1>${X("Let's get ready for your meeting","Preparémonos para su reunión")}</h1>
     <p>${X("A few short, friendly questions before your Individual Program Plan (IPP) meeting. It takes a few minutes and helps your coordinator prepare.","Unas preguntas cortas y amables antes de su reunión del Plan de Programa Individual (IPP). Le toma unos minutos y ayuda a su coordinador a prepararse.")}</p>
     <div class="wpts">
-      <div><span class="e">⏱️</span><span>${X2("About 10 minutes — most families skip half of it","Unos 10 minutos — la mayoría omite la mitad","Takes about 5–7 minutes","Toma unos 5–7 minutos")}</span></div>
+      <div><span class="e">⏱️</span><span>${X2("About 10 minutes — most people skip half of it","Unos 10 minutos — la mayoría omite la mitad","Takes about 5–7 minutes","Toma unos 5–7 minutos")}</span></div>
       <div><span class="e">💾</span><span>${X("Saves itself — you can leave and come back","Se guarda solo — puede salir y continuar después")}</span></div>
       <div><span class="e">✅</span><span>${X2("Only 1 question is required — everything else is up to you","Solo 1 pregunta es obligatoria — lo demás es opcional","Almost everything is optional — share what you can","Casi todo es opcional — comparta lo que pueda")}</span></div>
       <div><span class="e">🔒</span><span>${X("Private until you press Send","Privado hasta que presione Enviar")}</span></div>
@@ -1152,7 +1268,11 @@ function renderWelcome(){
     ${ hasDraft() ? `<div class="saved">↩︎ <b>${X("You have saved progress on this device.","Tiene progreso guardado en este dispositivo.")}</b> <a href="#" id="startOver" style="margin-left:6px;color:inherit;text-decoration:underline">${X("Start over","Empezar de nuevo")}</a></div>` : "" }
   `;
   stage.appendChild(d);
-  d.querySelectorAll(".langpick .chip").forEach(c=>c.onclick=()=>{ setLang(c.dataset.l); });
+  d.querySelectorAll(".langpick .chip[data-l]").forEach(c=>c.onclick=()=>{ setLang(c.dataset.l); });
+  d.querySelectorAll(".voicepick .chip[data-v]").forEach(c=>{
+    const pick=()=>{ data.voice=c.dataset.v; persist(); render(); };
+    c.onclick=pick; c.onkeydown=e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); pick(); } };
+  });
   document.getElementById("startBtn").onclick = ()=>{ idx = firstUnansweredStep(); persist(); render(); };
   const _so=document.getElementById("startOver");
   if(_so) _so.onclick=(e)=>{ e.preventDefault(); if(confirm(X("Clear your progress and start over?","¿Borrar su progreso y empezar de nuevo?"))){ clearDraft(); data={}; idx=-1; render(); } };
@@ -1184,7 +1304,7 @@ function fieldByKey(key){ for(const s of STEPS){ const f=s.fields.find(x=>x.key=
 function fieldHTML(f){
   /* 2026-09-05: every gate decides FIRST-PAINT visibility, not only showIf — otherwise
      an age- or renewal-gated field flashes visible until applyShowIf next runs. */
-  const hide = ((f.showIf||f.ageOnly||f.renewalOnly||f.sinceKey) && !showIfMet(f)) ? `style="display:none"` : "";
+  const hide = ((f.showIf||f.ageOnly||f.renewalOnly||f.sinceKey||f.familyOnly) && !showIfMet(f)) ? `style="display:none"` : "";
   // info-only note (no input) — e.g. Medic Alert "would like info"
   if (f.type==="note"){
     return `<div class="field" data-fieldkey="${f.key}" ${hide}><div class="notebox"><span>ℹ️</span><span>${tx(f.label)}</span></div></div>`;
@@ -1599,6 +1719,9 @@ function showIfMet(f){
      families). ageOnly → "youth" under 22 (school question) or "adult" (work/day
      program); an unknown DOB shows the adult wording, since most consumers are. */
   if(f.renewalOnly && !RENEWAL) return false;
+  /* Self-advocate: "Your name (person filling this out)" and "Your relationship to
+     them" make no sense when the person IS the respondent. */
+  if(f.familyOnly && data.voice==="self") return false;
   /* Continuation mode: a section whose "Since last year" chip says "No changes" hides
      its other fields. The coordinator already holds last year's answers in the IPP;
      the family only reports what changed. Zero egress, no second form. */
@@ -1613,7 +1736,7 @@ function showIfMet(f){
 }
 function applyShowIf(step){
   step.fields.forEach(f=>{
-    if(!(f.showIf||f.ageOnly||f.renewalOnly||f.sinceKey)) return;
+    if(!(f.showIf||f.ageOnly||f.renewalOnly||f.sinceKey||f.familyOnly)) return;
     const el=stage.querySelector(`.field[data-fieldkey="${f.key}"]`);
     if(el) el.style.display = showIfMet(f) ? "" : "none";
   });
@@ -1721,7 +1844,9 @@ function renderDone(){
   d.innerHTML=`<div class="check">✓</div>
     <h1>${X("Thank you! 💚","¡Gracias! 💚")}</h1>
     <p>${ window.__sendActed
-      ? X("Your answers were sent securely to <b>{0}</b>. They'll review everything before your IPP meeting so your time together can focus on you and your loved one — not paperwork.","Sus respuestas fueron enviadas de forma segura a <b>{0}</b>. Las revisará antes de su reunión del IPP para que el tiempo juntos se enfoque en usted y su ser querido — no en el papeleo.",[name])
+      ? (voiceSelf()
+          ? X("Your answers were sent securely to <b>{0}</b>. Your coordinator will read everything before your IPP meeting, so the meeting can be about you — not paperwork.","Sus respuestas fueron enviadas de forma segura a <b>{0}</b>. Su coordinador las revisará antes de su reunión del IPP, para que la reunión sea sobre usted — no sobre el papeleo.",[name])
+          : X("Your answers were sent securely to <b>{0}</b>. They'll review everything before your IPP meeting so your time together can focus on you and your loved one — not paperwork.","Sus respuestas fueron enviadas de forma segura a <b>{0}</b>. Las revisará antes de su reunión del IPP para que el tiempo juntos se enfoque en usted y su ser querido — no en el papeleo.",[name]))
       : X("If you already sent your answers to <b>{0}</b>, they'll review everything before your IPP meeting. If not, no problem — you can share your answers at the meeting.","Si ya envió sus respuestas a <b>{0}</b>, las revisará antes de su reunión del IPP. Si no, no hay problema — puede compartir sus respuestas en la reunión.",[name]) }</p>
     ${ window.__receiptCode ? `<div class="notebox"><b>${X("Your reference code","Su código de referencia")}: <code>${esc(window.__receiptCode)}</code></b><br>${X("If {0} asks whether your answers arrived, give them this code.","Si {0} pregunta si sus respuestas llegaron, dele este código.",[name])}</div>` : "" }
     <div class="done-next">
@@ -2063,10 +2188,18 @@ function buildPayload(){
      reads a.key||'' either way, and the human summary already skips blanks. */
   STEPS.forEach(s=>s.fields.forEach(f=>{
     if(f.type==="note" || f.type==="booking" || SKIP.includes(f.key)) return;
+    /* A family-only field never ships in self mode — a parent who typed their name
+       and then switched to "I'm filling this out for myself" would otherwise send it. */
+    if(f.familyOnly && !showIfMet(f)) return;
     const v=displayVal(f); if(v!=null && String(v).trim()!=="") answers[f.key]=v;
   }));
+  /* Self-advocate: the respondent IS the person, so the IPP header's relationship
+     reads Self. The respondent NAME is deliberately left out: the template maps it
+     to the Parent/Guardian header, and a self-advocate is not their own guardian. */
+  if(data.voice==="self"){ answers.respondent_relationship="Self"; delete answers.respondent_name; }
   return {
     submittedAt: new Date().toISOString(),
+    voice: data.voice==="self" ? "self" : "family",
     lang,
     token: window.VMRC_CONFIG.token||"",   // light anti-spam (validated by Code.gs)
     legal_name: data.legal_name||"",
@@ -2107,8 +2240,10 @@ function summaryText(p){
   s += `Name: ${p.legal_name}${p.preferred_name?` ("${p.preferred_name}")`:""}\n`;
   if(p.dob) s+=`DOB: ${p.dob}\n`;
   s += `Submitted: ${new Date(p.submittedAt).toLocaleString()}\n`;
+  if(p.voice==="self") s += `Voice: self-advocate (the person answered for themselves)\n`;
   STEPS.forEach(step=>{
-    const lines=step.fields.map(f=>{ const v=p.answers[f.key]; return v?`  • ${tx(f.label)}: ${v}`:null; }).filter(Boolean);
+    const lines=step.fields.filter(f=>!(p.voice==="self" && f.familyOnly))   // "Voice:" line already says who answered
+      .map(f=>{ const v=p.answers[f.key]; return v?`  • ${tx(f.label)}: ${v}`:null; }).filter(Boolean);
     if(lines.length){ s+=`\n${step.icon} ${tx(step.title).toUpperCase()}\n${lines.join("\n")}\n`; }
   });
   // Machine-readable block: lets the coordinator's IPP tool auto-fill the header
@@ -2131,7 +2266,7 @@ function summaryText(p){
      and makes emitter and importer agree. Kept rather than deleted for that reason:
      the transport fix does not need the ~440 bytes, and dropping it would freeze the
      mismatch in place. */
-  s += JSON.stringify({ submittedAt:p.submittedAt, legal_name:p.legal_name, preferred_name:p.preferred_name, dob:p.dob, lang:p.lang, answers:p.answers }) + "\n";
+  s += JSON.stringify({ submittedAt:p.submittedAt, voice:p.voice, legal_name:p.legal_name, preferred_name:p.preferred_name, dob:p.dob, lang:p.lang, answers:p.answers }) + "\n";
   s += "----- END -----\n";
   return s;
 }
@@ -2547,7 +2682,7 @@ function displayValLoc(f){
 }
 function toArr(v){ return Array.isArray(v)?v:(v?[v]:[]); }
 function esc(s){ return (s==null?"":String(s)).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
-function hasDraft(){ return Object.keys(data).some(k=>k!=="__step"&&data[k]&&(Array.isArray(data[k])?data[k].length:true)); }
+function hasDraft(){ return Object.keys(data).some(k=>k!=="__step"&&k!=="voice"&&data[k]&&(Array.isArray(data[k])?data[k].length:true)); }   // picking a voice is not progress
 function firstUnansweredStep(){
   // Resume where the family left off: the saved step if valid, else the
   // furthest step that already has any answer, else the first step.
