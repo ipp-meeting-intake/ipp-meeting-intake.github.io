@@ -1209,12 +1209,18 @@ function renderWelcome(){
   d.className = "step active welcome";
   // Personalized greeting from a ?name= link (e.g. ...github.io/?name=Maria). We
   // only use it for a friendly hello — never prefill PHI from the URL.
-  const inviteName = (new URLSearchParams(location.search).get("name")||"").trim().slice(0,40);
-  // Scrub the name from the address bar/history once read (it stays in memory only)
+  /* 2026-09-07: the name rides the FRAGMENT (#name=), which browsers never send to the
+     server. It used to ride the query string, so GitHub Pages logged the family's first
+     name — next to the ?sc= coordinator id, an IP and a timestamp — before any script
+     ran; the replaceState below only ever cleaned the address bar, far too late. Legacy
+     ?name= links still work and are still scrubbed. */
+  const _hp = new URLSearchParams((location.hash||"").replace(/^#/,""));
+  const _qp = new URLSearchParams(location.search);
+  const inviteName = (_hp.get("name") || _qp.get("name") || "").trim().slice(0,40);
   if(inviteName && window.history && history.replaceState){
-    const q=new URLSearchParams(location.search); q.delete("name");
-    const rest=q.toString();
-    try{ history.replaceState(null,"",location.pathname+(rest?"?"+rest:"")+location.hash); }catch(e){}
+    _qp.delete("name"); _hp.delete("name");
+    const rest=_qp.toString(), frag=_hp.toString();
+    try{ history.replaceState(null,"",location.pathname+(rest?"?"+rest:"")+(frag?"#"+frag:"")); }catch(e){}
   }
   const coordName  = window.VMRC_CONFIG.coordinatorName || "your coordinator";
   const coordPhone = (window.VMRC_CONFIG.coordinatorPhone||"").trim();
