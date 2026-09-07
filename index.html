@@ -460,6 +460,18 @@
   [data-theme="dark"] .err{color:#f08a80}
   .err.ok{color:#1e7e34}                          /* "✓ Copied…" is a success, not an error */
   [data-theme="dark"] .err.ok{color:#7bd88a}
+  /* Review pack (2026-09-07): the family reading last year's plan. Screen only. */
+  .rp-panel,.rp-unlock{border:1px solid var(--line);border-left:4px solid var(--navy);border-radius:12px;background:var(--card);padding:14px 16px;margin:0 0 16px}
+  .rp-head{display:flex;justify-content:space-between;align-items:center;gap:10px;font-weight:800;font-size:15px}
+  .rp-hide{background:transparent;border:1px solid var(--line);border-radius:8px;padding:5px 10px;font:inherit;font-size:12.5px;cursor:pointer;color:var(--muted)}
+  .rp-sub{font-size:13px;color:var(--muted);margin:6px 0 10px}
+  .rp-area{border-top:1px solid var(--line);padding:8px 0}
+  .rp-area summary{cursor:pointer;font-weight:700;font-size:14px}
+  .rp-f{margin:8px 0 0}
+  .rp-f b{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:2px}
+  .rp-f div{font-size:14px;white-space:pre-line}
+  .rp-unlock input{width:100%;margin:0 0 10px}
+  @media print{.rp-panel,.rp-unlock{display:none}}
   .skip{position:absolute;left:-9999px;top:8px;z-index:99;background:#fff;color:#0c0d10;padding:10px 14px;border-radius:8px;font-weight:700;text-decoration:none}
   .skip:focus{left:8px}
   .footer{text-align:center;font-size:12.5px;color:var(--muted);padding:14px;opacity:.9}   /* 2026-09-05: was 11px */
@@ -526,6 +538,7 @@
     <div class="spacer"></div>
     <button class="iconbtn" id="langBtn" title="Language">🌐 ES</button>
     <button class="iconbtn" id="readBtn" title="Read this page aloud" aria-label="Read this page aloud" aria-pressed="false">🔊</button>
+    <button class="iconbtn" id="rpOpenBtn" hidden title="Your plan from last year">📖</button>
     <button class="iconbtn" id="bigBtn" title="Larger text" aria-label="Larger text" aria-pressed="false">A+</button>
     <button class="iconbtn" id="themeBtn" title="Theme">🌙</button>
   </div>
@@ -1180,6 +1193,7 @@ function render(){
   if (idx === STEPS.length){ renderReview(); return; }
   if (idx === STEPS.length+1){ renderDone(); return; }
   renderStep(STEPS[idx]);
+  if(typeof RP!=='undefined' && RP.open) rpRenderPanel();
   window.scrollTo({top:0,behavior:"smooth"});
 }
 
@@ -1270,6 +1284,7 @@ function renderWelcome(){
       <span class="ti">📅</span>
       <span>${X("Want to pick the meeting time yourself? Choose a time that works for you — online or in person.","¿Quiere elegir usted la hora de la reunión? Escoja el horario que mejor le convenga — en línea o en persona.")} <a href="${esc(bookUrl)}" target="_blank" rel="noopener" id="welBookLink"><b>${X("Pick a meeting time","Elegir la hora de la reunión")} →</b></a></span>
     </div>` : "" }
+    ${ rpUnlockHTML() }
     <div class="nav"><button class="btn primary" id="startBtn">${ hasDraft() ? (X("Continue where I left off","Continuar donde quedó")) : tx(T.start) } →</button></div>
     ${ hasDraft() ? `<div class="saved">↩︎ <b>${X("You have saved progress on this device.","Tiene progreso guardado en este dispositivo.")}</b> <a href="#" id="startOver" style="margin-left:6px;color:inherit;text-decoration:underline">${X("Start over","Empezar de nuevo")}</a></div>` : "" }
   `;
@@ -1279,6 +1294,7 @@ function renderWelcome(){
     const pick=()=>{ data.voice=c.dataset.v; persist(); render(); };
     c.onclick=pick; c.onkeydown=e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); pick(); } };
   });
+  rpWireUnlock();
   document.getElementById("startBtn").onclick = ()=>{ idx = firstUnansweredStep(); persist(); render(); };
   const _so=document.getElementById("startOver");
   if(_so) _so.onclick=(e)=>{ e.preventDefault(); if(confirm(X("Clear your progress and start over?","¿Borrar su progreso y empezar de nuevo?"))){ clearDraft(); data={}; idx=-1; render(); } };
@@ -2185,6 +2201,131 @@ function wireMic(node,step){
       try{ r.start(); }catch(e){ done(); }
     };
   });
+}
+
+
+/* ═══ 📖 REVIEW PACK — read last year's plan before answering ═══════════════════
+   A renewal family is asked "Since last year… No changes?" while being shown nothing.
+   The coordinator can now seal last year's plan into the link; this opens it.
+
+   The pack rides the FRAGMENT (never sent to a server) and is scrubbed from the URL the
+   moment it is read, so a forwarded link or a screenshot carries nothing. The decrypted
+   text lives in this closure and on screen — NEVER in `data`, because persist() writes
+   that whole object to localStorage on every change and again on pagehide.
+   Envelope: IPPR1.<z>.<tag>.<salt>.<iv>.<ct>. Key: PBKDF2-SHA256 600k from the code the
+   coordinator reads out by phone. The tag is AES-GCM additionalData, so a pack opened
+   against the wrong consumer fails as a crypto error rather than opening quietly.
+   ══════════════════════════════════════════════════════════════════════════════ */
+const RP = (function(){
+  let sealed = null;      // ciphertext, harmless at rest
+  let plan   = null;      // DECRYPTED — never leaves this closure
+  let idle   = null;
+  const REVIEW = new URLSearchParams(location.search).has("review");
+  /* read the pack, then scrub the fragment immediately */
+  (function(){
+    try{
+      const hp = new URLSearchParams((location.hash||"").replace(/^#/,""));
+      const p = hp.get("pack");
+      if(p){
+        sealed = p; hp.delete("pack");
+        const rest = hp.toString();
+        if(window.history && history.replaceState)
+          history.replaceState(null,"",location.pathname+location.search+(rest?"#"+rest:""));
+      }
+    }catch(e){}
+  })();
+  const b64u = t => { t=String(t).replace(/-/g,"+").replace(/_/g,"/"); t+="=".repeat((4-t.length%4)%4);
+    const bin=atob(t), out=new Uint8Array(bin.length);
+    for(let i=0;i<bin.length;i++) out[i]=bin.charCodeAt(i); return out.buffer; };
+  async function open_(code){
+    if(!sealed) throw new Error("no-pack");
+    const p = String(sealed).split(".");
+    if(p.length!==6 || p[0]!=="IPPR1") throw new Error("bad-pack");
+    const tag=p[2], salt=new Uint8Array(b64u(p[3])), iv=new Uint8Array(b64u(p[4])), ct=b64u(p[5]);
+    const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(code), "PBKDF2", false, ["deriveKey"]);
+    const key  = await crypto.subtle.deriveKey({name:"PBKDF2",salt,iterations:600000,hash:"SHA-256"},
+                   base, {name:"AES-GCM",length:256}, false, ["decrypt"]);
+    let raw = await crypto.subtle.decrypt({name:"AES-GCM",iv,additionalData:new TextEncoder().encode(tag)}, key, ct);
+    if(p[1]==="1") raw = await new Response(new Blob([raw]).stream().pipeThrough(new DecompressionStream("deflate-raw"))).arrayBuffer();
+    plan = JSON.parse(new TextDecoder().decode(raw));
+    armIdle();
+    return plan;
+  }
+  function wipe(){
+    plan = null;
+    try{ document.querySelectorAll("[data-rp-text]").forEach(n=>{ n.textContent=""; }); }catch(e){}
+    const box = document.getElementById("rpPanel"); if(box) box.remove();
+    if(idle){ clearTimeout(idle); idle=null; }
+    const b = document.getElementById("rpOpenBtn"); if(b) b.hidden = false;
+  }
+  function armIdle(){ if(idle) clearTimeout(idle); idle = setTimeout(wipe, 180000); }   // 3 minutes
+  document.addEventListener("visibilitychange", ()=>{ if(document.hidden) wipe(); });
+  window.addEventListener("pagehide", wipe);
+  ["click","keydown","touchstart"].forEach(ev=>document.addEventListener(ev, ()=>{ if(plan) armIdle(); }, {passive:true}));
+  return { get available(){ return !!sealed; }, get isReview(){ return REVIEW || !!sealed; },
+           get open(){ return !!plan; }, get plan(){ return plan; }, unlock:open_, wipe };
+})();
+
+/* The panel. Section headings and the coordinator's wording are shown EXACTLY as written —
+   plan text is never machine-translated; only the surrounding labels follow the language. */
+function rpRenderPanel(){
+  if(!RP.open) return;
+  document.getElementById("rpPanel")?.remove();
+  const p = RP.plan, d = document.createElement("div");
+  d.id = "rpPanel"; d.className = "rp-panel";
+  const areas = (p.areas||[]).map(a=>{
+    const rows = [["outcome", X("What we wrote you wanted","Lo que escribimos que usted quería")],
+                  ["current", X("What was happening then","Lo que estaba pasando entonces")],
+                  ["important_to", X("What mattered to you","Lo que era importante para usted")],
+                  ["important_for", X("What you needed","Lo que usted necesitaba")],
+                  ["todo", X("What we said we would do","Lo que dijimos que haríamos")]]
+      .filter(([k])=>a[k]).map(([k,label])=>
+        `<div class="rp-f"><b>${esc(label)}</b><div data-rp-text>${esc(a[k])}</div></div>`).join("");
+    return `<details class="rp-area" open><summary>${esc(a.area)}</summary>${rows}</details>`;
+  }).join("");
+  d.innerHTML = `<div class="rp-head"><span>📖 ${esc(X("Your plan from last year","Su plan del año pasado"))}</span>
+      <button type="button" class="rp-hide" id="rpHide">${esc(X("Hide this","Ocultar"))}</button></div>
+    <p class="rp-sub">${esc(X("Read it, then tell us what has changed. It is only on this screen — it is not saved to your phone.","Léalo y luego díganos qué ha cambiado. Solo está en esta pantalla — no se guarda en su teléfono."))}</p>
+    ${areas || `<p class="rp-sub">${esc(X("No life areas were included.","No se incluyeron áreas de vida."))}</p>`}`;
+  const host = document.querySelector(".step.active") || stage;
+  host.insertBefore(d, host.firstChild);
+  document.getElementById("rpHide").onclick = ()=>{ RP.wipe(); rpRenderBar(); };
+  rpRenderBar();
+}
+/* The unlock card, shown on the welcome screen when a pack came in on the link. */
+function rpUnlockHTML(){
+  if(!RP.available || RP.open) return "";
+  return `<div class="rp-unlock" id="rpUnlock">
+      <div class="rp-head"><span>📖 ${esc(X("Your coordinator sent your plan from last year","Su coordinador le envió su plan del año pasado"))}</span></div>
+      <p class="rp-sub">${esc(X("Type the words your coordinator read to you on the phone.","Escriba las palabras que su coordinador le leyó por teléfono."))}</p>
+      <input type="text" id="rpCode" autocomplete="off" autocapitalize="none" spellcheck="false"
+             placeholder="${esc(X("word-word-word…","palabra-palabra-palabra…"))}">
+      <button type="button" class="btn primary" id="rpGo">${esc(X("Show my plan","Ver mi plan"))}</button>
+      <div class="err" id="rpErr"></div></div>`;
+}
+function rpWireUnlock(){
+  const go = document.getElementById("rpGo"); if(!go) return;
+  go.onclick = async ()=>{
+    const err = document.getElementById("rpErr"), code = (document.getElementById("rpCode").value||"").trim().toLowerCase();
+    err.style.display = "none";
+    if(!code) return;
+    go.disabled = true; go.textContent = X("Opening…","Abriendo…");
+    try{
+      await RP.unlock(code);
+      document.getElementById("rpUnlock")?.remove();
+      rpRenderPanel();
+    }catch(e){
+      go.disabled = false; go.textContent = X("Show my plan","Ver mi plan");
+      err.textContent = X("Those words did not open it. Check with your coordinator — the words are only good for this plan.","Esas palabras no lo abrieron. Consulte con su coordinador — las palabras solo sirven para este plan.");
+      err.classList.remove("ok"); err.style.display = "block";
+    }
+  };
+}
+/* A button in the bar so the plan can be reopened on any step while it is unlocked. */
+function rpRenderBar(){
+  const b = document.getElementById("rpOpenBtn"); if(!b) return;
+  b.hidden = !RP.open;
+  b.onclick = ()=>{ rpRenderPanel(); };
 }
 
 /* ═══════════════════════════════════════════════════════════════════
