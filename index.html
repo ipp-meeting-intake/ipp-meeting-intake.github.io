@@ -1726,9 +1726,14 @@ function showIfMet(f){
      its other fields. The coordinator already holds last year's answers in the IPP;
      the family only reports what changed. Zero egress, no second form. */
   if(f.sinceKey && RENEWAL && toArr(data[f.sinceKey]).includes("No changes")) return false;
-  if(f.ageOnly){ const a=personAge(); const youth=(a!==null && a<22);
-    if(f.ageOnly==="youth" && !youth) return false;
-    if(f.ageOnly==="adult" && youth) return false; }
+  /* 2026-09-07: the work question starts at 16, not 22 — Employment First makes work a
+     required conversation from 16, and the old gate meant nobody aged 16-21 was ever
+     asked. School shows under 22 OR when the date of birth is blank (a skipped DOB used
+     to hide the school question and show the work one, backwards for an unknown child).
+     16-21 deliberately sees BOTH: that is exactly the transition window. */
+  if(f.ageOnly){ const a=personAge();
+    if(f.ageOnly==="youth" && !(a===null || a<22)) return false;
+    if(f.ageOnly==="adult" && !(a===null || a>=16)) return false; }
   if(!f.showIf) return true;
   const cur=toArr(data[f.showIf[0]]);
   const want=Array.isArray(f.showIf[1])?f.showIf[1]:[f.showIf[1]];
@@ -2188,9 +2193,15 @@ function buildPayload(){
      reads a.key||'' either way, and the human summary already skips blanks. */
   STEPS.forEach(s=>s.fields.forEach(f=>{
     if(f.type==="note" || f.type==="booking" || SKIP.includes(f.key)) return;
-    /* A family-only field never ships in self mode — a parent who typed their name
-       and then switched to "I'm filling this out for myself" would otherwise send it. */
-    if(f.familyOnly && !showIfMet(f)) return;
+    /* 2026-09-07: a field the family cannot currently SEE never ships. Previously this
+       skipped only familyOnly fields, so an answer typed BEFORE a gate closed still
+       travelled and still drafted into the IPP — reproduced on a renewal link: type an
+       answer, tap "Since last year… No changes", and the stale text arrived anyway, to
+       be drafted as this year's answer. Same class: allergies typed then switched to
+       "None", IHSS hours after unchecking IHSS, the work/school pair after a DOB edit.
+       Non-destructive on purpose — data[] keeps the text, so re-opening the section
+       (or tapping "Some changes") brings it straight back. */
+    if(!showIfMet(f)) return;
     const v=displayVal(f); if(v!=null && String(v).trim()!=="") answers[f.key]=v;
   }));
   /* Self-advocate: the respondent IS the person, so the IPP header's relationship
