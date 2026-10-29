@@ -8,93 +8,89 @@
 <link rel="apple-touch-icon" href="favicon.png">
 <!-- ════════════════════════════════════════════════════════════════
      VMRC FAMILY PRE-SCREENING INTAKE  ·  A+C blend (guided + warm)
-     • Works standalone (preview / offline backup: copy + email).
-     • When served by Google Apps Script, auto-saves to your Sheet.
-     CONFIG below is also overridden by Apps Script (see Code.gs).
+     • Standalone, offline-first: answers stay on the device until Send, then travel
+       encrypted by copy / email. There is NO backend (the Apps Script + Sheet path
+       was retired 2026-06-04 and its files removed 2026-10-29).
      ════════════════════════════════════════════════════════════════ -->
 <script>
-  /* ▼▼▼  COORDINATOR REGISTRY (2026-07-29) — one deployed form serves the whole team  ▼▼▼
-     Each Service Coordinator gets their OWN entry: their email + their OWN public key
-     (generate with make_keys.py — never share private keys between coordinators).
-     The coordinator's link carries ?sc=<id> (e.g. …?sc=jchao). No/unknown id → the default.
-     The family's summary is ENCRYPTED TO THAT COORDINATOR'S KEY and the email buttons
-     address that coordinator — end-to-end, per SC. To add a teammate:
-       1) py make_keys.py (fresh folder / their machine) → their keypair + unlock code
-       2) py build_decoder.py → give them their decoder page (never publish it)
-       3) paste their public_key.jwk.json below as a new entry + redeploy this form
-       4) their family link = <form URL>?sc=<their id>                                     */
+  /* ▼▼▼  COORDINATOR REGISTRY (2026-07-29 · one team key since 2026-10-29)  ▼▼▼
+     Every family's answers are sealed to ONE team key (VMRC_TEAM_KEY below) — the key that
+     lives inside every coordinator's SC Toolkit copy — so any coordinator's toolkit opens any
+     family's reply with nothing typed. Each entry here is ROUTING ONLY: name, email, phone,
+     booking links. The coordinator's link carries ?sc=<id> (e.g. …?sc=jchao); no/unknown id
+     → the default. The email buttons address that coordinator.
+       • add a teammate:  py IPP-Tools-Clean/tools/onboard_teammates.py tools/roster.json --apply
+                          (or add an entry by hand) → redeploy this form
+       • ROTATE the team key (someone left / a toolkit file leaked):
+                          py IPP-Tools-Clean/tools/team_key.py --rotate --apply → redeploy the SAME day.
+         Replies sealed before that stop opening; those families resubmit from the same link. The
+         [IPP-KEY fp=… as-of=…] line under every envelope is how the toolkit tells them apart.  */
+  window.VMRC_TEAM_KEY = {"kty": "RSA", "n": "xOezRgkqWV6U1oaLsGJB09Mh3NVaHjuNT2Rv6ATajplM8zofFcs5sPkXRhRZfxsMS40rJ6RNO0VjGNTdUV0S0OV9E5mGhThyqPOV9sRLrSddETrGQaULUh3ddfS35YfTv8fWYHiadDUNLNhhi-K_wiQzJlZ2gyKM9CIN9dwFWUl4fqskts6P9NEc2WbhNxSD2oXXSEqaBz9b-k6gp1Xy8rx0yqGVGw_AA-gDZsq4Etqjo_uE4Ewzt2HtKvOaGCC4KujspznCcMv01E-w0Aj1FmbH_d4QMr5-ovvh7FN8S4NH2imNe7q_Pmqn5SesCqR033rGjL4AM9ytg8T_HPgnTw", "e": "AQAB", "alg": "RSA-OAEP-256", "ext": true};
+  window.VMRC_KEY_AS_OF = "2026-10-29";    /* the day VMRC_TEAM_KEY was published — stamped under every envelope */
+  window.VMRC_FORM_BUILD = "2026-10-29";   /* shown in the footer and by #selftest */
   window.VMRC_COORDINATORS = {
     jchao: {
       name:  "Justin Chao",
       email: "jchao@vmrc.net",
       phone: "(209) 955-3293",
       bookingUrl: "https://outlook.office.com/bookwithme/user/312c48775e294c209d9000acf8d3eb93@vmrc.net/meetingtype/H75kRGLC8EmQUjPeyDUFnQ2?anonymous&ismsaljsauthenabled&ep=email",
-      bookingUrlInPerson: "https://outlook.office.com/bookwithme/user/312c48775e294c209d9000acf8d3eb93@vmrc.net/meetingtype/LbigvfzL4kKiT7oeFONKGQ2?anonymous&ismsaljsauthenabled&ep=email",
-      pubKey: {"kty": "RSA", "n": "xOezRgkqWV6U1oaLsGJB09Mh3NVaHjuNT2Rv6ATajplM8zofFcs5sPkXRhRZfxsMS40rJ6RNO0VjGNTdUV0S0OV9E5mGhThyqPOV9sRLrSddETrGQaULUh3ddfS35YfTv8fWYHiadDUNLNhhi-K_wiQzJlZ2gyKM9CIN9dwFWUl4fqskts6P9NEc2WbhNxSD2oXXSEqaBz9b-k6gp1Xy8rx0yqGVGw_AA-gDZsq4Etqjo_uE4Ewzt2HtKvOaGCC4KujspznCcMv01E-w0Aj1FmbH_d4QMr5-ovvh7FN8S4NH2imNe7q_Pmqn5SesCqR033rGjL4AM9ytg8T_HPgnTw", "e": "AQAB", "alg": "RSA-OAEP-256", "ext": true}
+      bookingUrlInPerson: "https://outlook.office.com/bookwithme/user/312c48775e294c209d9000acf8d3eb93@vmrc.net/meetingtype/LbigvfzL4kKiT7oeFONKGQ2?anonymous&ismsaljsauthenabled&ep=email"
     },
     kalcantara: {
       name:  "Katie Alcantara",
       email: "kalcantara@vmrc.net",
       phone: "(209) 955-3225",
       bookingUrl: "",
-      bookingUrlInPerson: "",
-      pubKey: {"kty": "RSA", "n": "xOezRgkqWV6U1oaLsGJB09Mh3NVaHjuNT2Rv6ATajplM8zofFcs5sPkXRhRZfxsMS40rJ6RNO0VjGNTdUV0S0OV9E5mGhThyqPOV9sRLrSddETrGQaULUh3ddfS35YfTv8fWYHiadDUNLNhhi-K_wiQzJlZ2gyKM9CIN9dwFWUl4fqskts6P9NEc2WbhNxSD2oXXSEqaBz9b-k6gp1Xy8rx0yqGVGw_AA-gDZsq4Etqjo_uE4Ewzt2HtKvOaGCC4KujspznCcMv01E-w0Aj1FmbH_d4QMr5-ovvh7FN8S4NH2imNe7q_Pmqn5SesCqR033rGjL4AM9ytg8T_HPgnTw", "e": "AQAB", "alg": "RSA-OAEP-256", "ext": true}
+      bookingUrlInPerson: ""
     },
     npomana: {
       name:  "Naiomi Pomana",
       email: "npomana@vmrc.net",
       phone: "(209) 955-3279",
       bookingUrl: "",
-      bookingUrlInPerson: "",
-      pubKey: {"kty": "RSA", "n": "xOezRgkqWV6U1oaLsGJB09Mh3NVaHjuNT2Rv6ATajplM8zofFcs5sPkXRhRZfxsMS40rJ6RNO0VjGNTdUV0S0OV9E5mGhThyqPOV9sRLrSddETrGQaULUh3ddfS35YfTv8fWYHiadDUNLNhhi-K_wiQzJlZ2gyKM9CIN9dwFWUl4fqskts6P9NEc2WbhNxSD2oXXSEqaBz9b-k6gp1Xy8rx0yqGVGw_AA-gDZsq4Etqjo_uE4Ewzt2HtKvOaGCC4KujspznCcMv01E-w0Aj1FmbH_d4QMr5-ovvh7FN8S4NH2imNe7q_Pmqn5SesCqR033rGjL4AM9ytg8T_HPgnTw", "e": "AQAB", "alg": "RSA-OAEP-256", "ext": true}
+      bookingUrlInPerson: ""
     },
     mwilliams: {
       name:  "Malik Williams",
       email: "mwilliams@vmrc.net",
       phone: "(209) 955-3290",
       bookingUrl: "",
-      bookingUrlInPerson: "",
-      pubKey: {"kty": "RSA", "n": "xOezRgkqWV6U1oaLsGJB09Mh3NVaHjuNT2Rv6ATajplM8zofFcs5sPkXRhRZfxsMS40rJ6RNO0VjGNTdUV0S0OV9E5mGhThyqPOV9sRLrSddETrGQaULUh3ddfS35YfTv8fWYHiadDUNLNhhi-K_wiQzJlZ2gyKM9CIN9dwFWUl4fqskts6P9NEc2WbhNxSD2oXXSEqaBz9b-k6gp1Xy8rx0yqGVGw_AA-gDZsq4Etqjo_uE4Ewzt2HtKvOaGCC4KujspznCcMv01E-w0Aj1FmbH_d4QMr5-ovvh7FN8S4NH2imNe7q_Pmqn5SesCqR033rGjL4AM9ytg8T_HPgnTw", "e": "AQAB", "alg": "RSA-OAEP-256", "ext": true}
+      bookingUrlInPerson: ""
     },
     krodriguez: {
       name:  "Kimberly Rodriguez",
       email: "krodriguez@vmrc.net",
       phone: "(209) 955-3685",
       bookingUrl: "",
-      bookingUrlInPerson: "",
-      pubKey: {"kty": "RSA", "n": "xOezRgkqWV6U1oaLsGJB09Mh3NVaHjuNT2Rv6ATajplM8zofFcs5sPkXRhRZfxsMS40rJ6RNO0VjGNTdUV0S0OV9E5mGhThyqPOV9sRLrSddETrGQaULUh3ddfS35YfTv8fWYHiadDUNLNhhi-K_wiQzJlZ2gyKM9CIN9dwFWUl4fqskts6P9NEc2WbhNxSD2oXXSEqaBz9b-k6gp1Xy8rx0yqGVGw_AA-gDZsq4Etqjo_uE4Ewzt2HtKvOaGCC4KujspznCcMv01E-w0Aj1FmbH_d4QMr5-ovvh7FN8S4NH2imNe7q_Pmqn5SesCqR033rGjL4AM9ytg8T_HPgnTw", "e": "AQAB", "alg": "RSA-OAEP-256", "ext": true}
+      bookingUrlInPerson: ""
     },
     jsmith: {
       name:  "Jonecia Smith",
       email: "Jsmith@vmrc.net",
       phone: "(209) 955-3662",
       bookingUrl: "",
-      bookingUrlInPerson: "",
-      pubKey: {"kty": "RSA", "n": "xOezRgkqWV6U1oaLsGJB09Mh3NVaHjuNT2Rv6ATajplM8zofFcs5sPkXRhRZfxsMS40rJ6RNO0VjGNTdUV0S0OV9E5mGhThyqPOV9sRLrSddETrGQaULUh3ddfS35YfTv8fWYHiadDUNLNhhi-K_wiQzJlZ2gyKM9CIN9dwFWUl4fqskts6P9NEc2WbhNxSD2oXXSEqaBz9b-k6gp1Xy8rx0yqGVGw_AA-gDZsq4Etqjo_uE4Ewzt2HtKvOaGCC4KujspznCcMv01E-w0Aj1FmbH_d4QMr5-ovvh7FN8S4NH2imNe7q_Pmqn5SesCqR033rGjL4AM9ytg8T_HPgnTw", "e": "AQAB", "alg": "RSA-OAEP-256", "ext": true}
+      bookingUrlInPerson: ""
     },
     jkutsoginis: {
       name:  "Jessica Kutsoginis",
       email: "jkutsoginis@vmrc.net",
       phone: "(209) 955-3376",
       bookingUrl: "",
-      bookingUrlInPerson: "",
-      pubKey: {"kty": "RSA", "n": "xOezRgkqWV6U1oaLsGJB09Mh3NVaHjuNT2Rv6ATajplM8zofFcs5sPkXRhRZfxsMS40rJ6RNO0VjGNTdUV0S0OV9E5mGhThyqPOV9sRLrSddETrGQaULUh3ddfS35YfTv8fWYHiadDUNLNhhi-K_wiQzJlZ2gyKM9CIN9dwFWUl4fqskts6P9NEc2WbhNxSD2oXXSEqaBz9b-k6gp1Xy8rx0yqGVGw_AA-gDZsq4Etqjo_uE4Ewzt2HtKvOaGCC4KujspznCcMv01E-w0Aj1FmbH_d4QMr5-ovvh7FN8S4NH2imNe7q_Pmqn5SesCqR033rGjL4AM9ytg8T_HPgnTw", "e": "AQAB", "alg": "RSA-OAEP-256", "ext": true}
+      bookingUrlInPerson: ""
     },
     ddigiovanni: {
       name:  "Daisy DiGiovanni",
       email: "DDiGiovanni@vmrc.net",
       phone: "(209) 955-3325",
       bookingUrl: "",
-      bookingUrlInPerson: "",
-      pubKey: {"kty": "RSA", "n": "xOezRgkqWV6U1oaLsGJB09Mh3NVaHjuNT2Rv6ATajplM8zofFcs5sPkXRhRZfxsMS40rJ6RNO0VjGNTdUV0S0OV9E5mGhThyqPOV9sRLrSddETrGQaULUh3ddfS35YfTv8fWYHiadDUNLNhhi-K_wiQzJlZ2gyKM9CIN9dwFWUl4fqskts6P9NEc2WbhNxSD2oXXSEqaBz9b-k6gp1Xy8rx0yqGVGw_AA-gDZsq4Etqjo_uE4Ewzt2HtKvOaGCC4KujspznCcMv01E-w0Aj1FmbH_d4QMr5-ovvh7FN8S4NH2imNe7q_Pmqn5SesCqR033rGjL4AM9ytg8T_HPgnTw", "e": "AQAB", "alg": "RSA-OAEP-256", "ext": true}
+      bookingUrlInPerson: ""
     },
     acandela: {
       name:  "Angela Candela",
       email: "ACandela@vmrc.net",
       phone: "(209) 299-1867",
       bookingUrl: "",
-      bookingUrlInPerson: "",
-      pubKey: {"kty": "RSA", "n": "xOezRgkqWV6U1oaLsGJB09Mh3NVaHjuNT2Rv6ATajplM8zofFcs5sPkXRhRZfxsMS40rJ6RNO0VjGNTdUV0S0OV9E5mGhThyqPOV9sRLrSddETrGQaULUh3ddfS35YfTv8fWYHiadDUNLNhhi-K_wiQzJlZ2gyKM9CIN9dwFWUl4fqskts6P9NEc2WbhNxSD2oXXSEqaBz9b-k6gp1Xy8rx0yqGVGw_AA-gDZsq4Etqjo_uE4Ewzt2HtKvOaGCC4KujspznCcMv01E-w0Aj1FmbH_d4QMr5-ovvh7FN8S4NH2imNe7q_Pmqn5SesCqR033rGjL4AM9ytg8T_HPgnTw", "e": "AQAB", "alg": "RSA-OAEP-256", "ext": true}
+      bookingUrlInPerson: ""
     }
   };
   window.VMRC_DEFAULT_SC = "jchao";
@@ -112,16 +108,13 @@
     familyReceipt: false,                /* MUST stay false while cloud submission is disabled (no backend = no receipt email; true would promise families a confirmation that never arrives) */
     bookingUrl: c.bookingUrl || "",
     bookingUrlInPerson: c.bookingUrlInPerson || "",
-    /* Light anti-spam: this must match CONFIG.TOKEN in Code.gs. (It's visible in
-       the page source, so it only deters dumb bots — the honeypot is the real filter.) */
-    token: "vmrc-intake-7Qk2",
     /* CLOUD SUBMISSION DISABLED (privacy). The form does NOT POST anywhere; families
        hand their answers to the coordinator via encrypted copy/email only. Leave
        this empty. (Old Apps Script /exec target removed on 2026-06-04.) */
     webAppUrl: "",
-    /* ENCRYPTED SEND (2026-07-22): one-time AES-256-GCM key sealed with THIS
-       coordinator's RSA-OAEP-256 public key; only their offline decoder reads it. */
-    pubKey: c.pubKey
+    /* ENCRYPTED SEND (2026-07-22; team key 2026-10-29): one-time AES-256-GCM key sealed
+       with the TEAM RSA-OAEP-256 public key; every coordinator's toolkit opens it offline. */
+    pubKey: window.VMRC_TEAM_KEY
   }; })();
   /* ▲▲▲  Everything else is automatic.  ▲▲▲ */
 </script>
@@ -552,6 +545,7 @@
 
 <div class="footer">
   🔒 <span id="footPriv">Your answers are private and saved only on this device until you press Send. When you send them, they go to your Service Coordinator's email encrypted.</span>
+  <br><span id="footBuild" style="font-size:11px;opacity:.75"></span>
 </div>
 
 <!-- Honeypot: invisible to people, but spam bots fill every field they find.
@@ -2327,7 +2321,7 @@ function rpRenderBar(){
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   4) SUBMIT — Apps Script if available, else copy/email fallback
+   4) SEND — encrypted copy / email only (no backend; the Apps Script path is retired)
    ═══════════════════════════════════════════════════════════════════ */
 function buildPayload(){
   const answers={};
@@ -2357,7 +2351,6 @@ function buildPayload(){
     submittedAt: new Date().toISOString(),
     voice: data.voice==="self" ? "self" : "family",
     lang,
-    token: window.VMRC_CONFIG.token||"",   // light anti-spam (validated by Code.gs)
     legal_name: data.legal_name||"",
     preferred_name: data.preferred_name||"",
     dob: fmtDate(data.dob),
@@ -2438,6 +2431,12 @@ const ENC_HDR="----- IPP-INTAKE ENCRYPTED v1 -----", ENC_END="----- END -----";
 function abToB64(buf){ let s="",b=new Uint8Array(buf); for(let i=0;i<b.length;i+=0x8000) s+=String.fromCharCode.apply(null,b.subarray(i,i+0x8000)); return btoa(s); }
 // base64url (no padding): URL-safe AND avoids percent-encoding bloat in mailto links
 function abToB64u(buf){ return abToB64(buf).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,""); }
+/* The one fingerprint definition shared with the SC Toolkit (iiFp) and tools/sync_registry_fps.py:
+   SHA-256 of the JWK modulus, first 16 hex. */
+async function keyFingerprint(jwk){
+  const h=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(String((jwk&&jwk.n)||"")));
+  return [...new Uint8Array(h)].map(b=>b.toString(16).padStart(2,"0")).join("").slice(0,16);
+}
 async function encryptForCoordinator(text){
   const jwk=window.VMRC_CONFIG.pubKey;
   if(!jwk||!window.crypto||!crypto.subtle) throw new Error("no-crypto");
@@ -2476,9 +2475,49 @@ async function encryptForCoordinator(text){
     const h=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(env));
     chk=[...new Uint8Array(h)].slice(0,3).map(b=>b.toString(16).padStart(2,"0")).join("").toUpperCase();
   }catch(e){}
+  /* Key line (2026-10-29), also BELOW the fence so old decoders ignore it: WHICH key this
+     envelope is sealed to and the day that key was published. After a team-key rotation the
+     toolkit can then say "sealed to the key from before <date> — ask the family to resubmit"
+     instead of the dead-end "sealed to a key this browser doesn't hold" that cost Katie's
+     intake on 2026-10-28. */
+  let keyLine="";
+  try{ const fp=await keyFingerprint(jwk); if(fp) keyLine="\n[IPP-KEY fp="+fp+" as-of="+(window.VMRC_KEY_AS_OF||"")+"]"; }catch(e){}
   return tag+"\n"+ENC_HDR+"\n"+(env.match(/.{1,76}/g)||[]).join("\n")+"\n"+ENC_END
-       + (chk ? "\n[IPP-CHECK len="+env.length+" chk="+chk+"]" : "");
+       + (chk ? "\n[IPP-CHECK len="+env.length+" chk="+chk+"]" : "")
+       + keyLine;
 }
+/* Build + key stamp in the footer, and #selftest (2026-10-29): the live form proves its own key.
+   Open <form URL>#selftest → a panel seals a test string and shows build, coordinator, fingerprint,
+   as-of date and whether the [IPP-KEY] line matches. No family data is involved. */
+(function(){
+  function setFoot(fp){ var el=document.getElementById("footBuild");
+    if(el) el.textContent="Form "+(window.VMRC_FORM_BUILD||"?")+" · key "+(fp||"unavailable")+" ("+(window.VMRC_KEY_AS_OF||"?")+")"; }
+  var hasCrypto=!!(window.crypto&&crypto.subtle&&window.VMRC_TEAM_KEY);
+  if(!hasCrypto){ setFoot(""); }
+  else keyFingerprint(window.VMRC_TEAM_KEY).then(setFoot,function(){ setFoot(""); });
+  var hp; try{ hp=new URLSearchParams((location.hash||"").replace(/^#/,"")); }catch(e){ return; }
+  if(!hp.has("selftest")) return;
+  var box=document.createElement("div"); box.id="selftest";
+  box.style.cssText="position:fixed;left:8px;right:8px;bottom:8px;z-index:9999;background:#111;color:#eee;font:12px/1.6 ui-monospace,Consolas,monospace;padding:10px 12px;border-radius:8px;white-space:pre-wrap;box-shadow:0 4px 18px rgba(0,0,0,.4)";
+  box.textContent="VMRC intake self-test\nrunning…";
+  document.body.appendChild(box);
+  var rows=[["form build", window.VMRC_FORM_BUILD||"?"],
+            ["coordinator", (window.VMRC_SC_ID||"?")+" · "+((window.VMRC_CONFIG||{}).coordinatorEmail||"?")]];
+  var finish=function(fp, sealLine){
+    rows.push(["team key", "fp "+(fp||"unavailable")+" · as of "+(window.VMRC_KEY_AS_OF||"?")]);
+    rows.push(["seal test", sealLine]);
+    box.textContent="VMRC intake self-test\n"+rows.map(function(r){ return (r[0]+"            ").slice(0,13)+r[1]; }).join("\n");
+    box.dataset.result=/^OK/.test(sealLine)?"ok":"fail";
+  };
+  if(!hasCrypto){ finish("", "FAIL · encryption is not available in this browser"); return; }
+  keyFingerprint(window.VMRC_TEAM_KEY).then(function(fp){
+    return encryptForCoordinator("VMRC intake self-test "+new Date().toISOString()).then(function(env){
+      var m=env.match(/\[IPP-KEY fp=([0-9a-f]{16}) as-of=([0-9-]+)\]/);
+      var ok=!!(m && m[1]===fp && env.indexOf(ENC_HDR)>=0 && env.indexOf(ENC_END)>=0);
+      finish(fp, (ok?"OK":"FAIL")+" · "+env.length+" chars · [IPP-KEY] line "+(m?(m[1]===fp?"matches":"MISMATCH "+m[1]):"MISSING"));
+    });
+  }).catch(function(e){ finish("", "FAIL · "+(e&&e.message||e)); });
+})();
 
 /* Bumped on every Send tap. The ladder below runs after ~450ms of crypto, by
    which time the family may have tapped "← Back" and re-rendered the whole
